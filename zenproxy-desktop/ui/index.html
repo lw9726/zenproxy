@@ -1,0 +1,404 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ZenProxy Desktop</title>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <div class="shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-mark">Z</div>
+        <div>
+          <h1>ZenProxy</h1>
+          <p>Desktop Client</p>
+        </div>
+      </div>
+      <nav class="nav">
+        <button class="nav-item active" data-view="dashboard">总览</button>
+        <button class="nav-item" data-view="remote">在线代理池</button>
+        <button class="nav-item" data-view="local">本地代理池</button>
+        <button class="nav-item" data-view="subscriptions">本地订阅</button>
+        <button class="nav-item" data-view="settings">设置</button>
+      </nav>
+      <div class="sidebar-foot">
+        <button id="theme-toggle" class="ghost-btn">切换主题</button>
+      </div>
+    </aside>
+
+    <main class="content">
+      <header class="topbar">
+        <div>
+          <h2 id="view-title">总览</h2>
+          <p id="view-subtitle">管理本地 `zenproxy-client`，把在线节点顺手落到本地池。</p>
+        </div>
+        <div class="status-pills">
+          <span id="run-pill" class="pill">进程未知</span>
+          <span id="reach-pill" class="pill">API 未连接</span>
+        </div>
+      </header>
+
+      <section id="view-dashboard" class="view active">
+        <div class="hero-grid">
+          <div class="hero-card">
+            <div class="hero-head">
+              <div>
+                <h3>本地客户端</h3>
+                <p id="binary-path">未发现 `zenproxy-client`</p>
+              </div>
+              <div class="inline-actions">
+                <button id="start-client" class="primary-btn">启动</button>
+                <button id="stop-client" class="ghost-btn">停止</button>
+              </div>
+            </div>
+            <div class="metrics">
+              <div class="metric">
+                <span>控制地址</span>
+                <strong id="controller-url">-</strong>
+              </div>
+              <div class="metric">
+                <span>端口范围</span>
+                <strong id="port-range">-</strong>
+              </div>
+              <div class="metric">
+                <span>配置文件</span>
+                <strong id="config-path">-</strong>
+              </div>
+            </div>
+          </div>
+          <div class="summary-grid">
+            <article class="summary-card">
+              <span>本地代理池</span>
+              <strong id="local-count">0</strong>
+            </article>
+            <article class="summary-card">
+              <span>已绑定端口</span>
+              <strong id="binding-count">0</strong>
+            </article>
+            <article class="summary-card">
+              <span>本地订阅</span>
+              <strong id="subscription-count">0</strong>
+            </article>
+            <article class="summary-card">
+              <span>默认批量获取</span>
+              <strong id="default-count">0</strong>
+            </article>
+          </div>
+        </div>
+
+        <div class="panel-grid">
+          <section class="panel">
+            <div class="section-head">
+              <div>
+                <h3>快捷导入</h3>
+                <p>从在线池直接导入并可选自动绑定到本地端口。</p>
+              </div>
+            </div>
+            <form id="quick-import-form" class="form-grid compact">
+              <label>
+                <span>获取数量</span>
+                <input type="number" id="quick-count" min="1" max="5000" value="50">
+              </label>
+              <label>
+                <span>国家</span>
+                <input type="text" id="quick-country" placeholder="US / JP / HK">
+              </label>
+              <label>
+                <span>类型</span>
+                <input type="text" id="quick-type" placeholder="vmess / vless">
+              </label>
+              <label class="checkbox">
+                <input type="checkbox" id="quick-chatgpt">
+                <span>仅 ChatGPT 可用</span>
+              </label>
+              <label class="checkbox">
+                <input type="checkbox" id="quick-auto-bind">
+                <span>导入后自动绑定</span>
+              </label>
+              <div class="inline-actions">
+                <button type="submit" class="primary-btn">导入到本地池</button>
+                <button type="button" id="go-remote" class="ghost-btn">打开在线代理池</button>
+              </div>
+            </form>
+          </section>
+
+          <section class="panel">
+            <div class="section-head">
+              <div>
+                <h3>最近状态</h3>
+                <p>这里会显示最近一次操作结果。</p>
+              </div>
+            </div>
+            <div id="activity-log" class="activity-log empty">还没有操作记录</div>
+          </section>
+        </div>
+      </section>
+
+      <section id="view-remote" class="view">
+        <div class="panel">
+          <div class="section-head">
+            <div>
+              <h3>在线代理池采样</h3>
+              <p>预览在线池返回的节点，再决定导入本地池。</p>
+            </div>
+            <div class="inline-actions">
+              <button id="remote-preview" class="ghost-btn">预览</button>
+              <button id="remote-import" class="primary-btn">导入选中</button>
+              <button id="remote-import-bind" class="ghost-btn">导入并自动绑定</button>
+            </div>
+          </div>
+
+          <div class="form-grid">
+            <label>
+              <span>数量</span>
+              <input type="number" id="remote-count" min="1" max="5000" value="50">
+            </label>
+            <label>
+              <span>国家</span>
+              <input type="text" id="remote-country" placeholder="例如 US">
+            </label>
+            <label>
+              <span>类型</span>
+              <input type="text" id="remote-type" placeholder="例如 vmess">
+            </label>
+            <label class="checkbox">
+              <input type="checkbox" id="remote-chatgpt">
+              <span>仅 ChatGPT 可用</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="table-panel">
+          <div class="table-toolbar">
+            <label class="checkbox">
+              <input type="checkbox" id="remote-select-all">
+              <span>全选当前采样</span>
+            </label>
+            <span id="remote-meta" class="subtle">暂无数据</span>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th></th>
+                  <th>名称</th>
+                  <th>类型</th>
+                  <th>国家</th>
+                  <th>出口</th>
+                  <th>住宅</th>
+                  <th>风险</th>
+                </tr>
+              </thead>
+              <tbody id="remote-table"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <section id="view-local" class="view">
+        <div class="panel">
+          <div class="section-head">
+            <div>
+              <h3>本地代理池</h3>
+              <p>这里展示已经进入本地 store 的节点，适合做批量绑定和清理。</p>
+            </div>
+            <div class="inline-actions">
+              <button id="refresh-local" class="ghost-btn">刷新</button>
+              <button id="bind-selected" class="ghost-btn">绑定选中</button>
+              <button id="bind-all" class="primary-btn">绑定全部</button>
+              <button id="clear-local" class="danger-btn">清空本地池</button>
+            </div>
+          </div>
+
+          <div class="form-grid compact">
+            <label class="wide">
+              <span>手动添加 URI</span>
+              <input type="text" id="manual-uri" placeholder="vmess://... / vless://... / trojan://...">
+            </label>
+            <div class="inline-actions">
+              <button id="add-manual" class="ghost-btn">添加到本地池</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="table-panel">
+          <div class="table-toolbar">
+            <label class="checkbox">
+              <input type="checkbox" id="local-select-all">
+              <span>全选本地代理</span>
+            </label>
+            <span id="local-meta" class="subtle">暂无数据</span>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th></th>
+                  <th>名称</th>
+                  <th>类型</th>
+                  <th>来源</th>
+                  <th>服务器</th>
+                  <th>本地端口</th>
+                  <th>操作</th>
+                </tr>
+              </thead>
+              <tbody id="local-table"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="table-panel">
+          <div class="section-head compact-head">
+            <div>
+              <h3>当前绑定</h3>
+              <p>本地可直接使用的监听端口。</p>
+            </div>
+            <div class="inline-actions">
+              <button id="refresh-bindings" class="ghost-btn">刷新</button>
+              <button id="clear-bindings" class="danger-btn">清空绑定</button>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>标签</th>
+                  <th>代理 ID</th>
+                  <th>监听端口</th>
+                  <th>操作</th>
+                </tr>
+              </thead>
+              <tbody id="bindings-table"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <section id="view-subscriptions" class="view">
+        <div class="panel">
+          <div class="section-head">
+            <div>
+              <h3>本地订阅</h3>
+              <p>订阅导入后会自动写入本地代理池。</p>
+            </div>
+            <div class="inline-actions">
+              <button id="refresh-subscriptions" class="ghost-btn">刷新</button>
+            </div>
+          </div>
+          <div class="form-grid">
+            <label>
+              <span>名称</span>
+              <input type="text" id="sub-name" placeholder="airport">
+            </label>
+            <label>
+              <span>订阅类型</span>
+              <input type="text" id="sub-type" placeholder="auto / clash / v2ray" value="auto">
+            </label>
+            <label class="wide">
+              <span>订阅 URL</span>
+              <input type="text" id="sub-url" placeholder="https://example.com/sub">
+            </label>
+            <label class="wide">
+              <span>或直接填写内容</span>
+              <textarea id="sub-content" rows="4" placeholder="vmess://..."></textarea>
+            </label>
+            <div class="inline-actions">
+              <button id="add-subscription" class="primary-btn">添加订阅</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="table-panel">
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>名称</th>
+                  <th>类型</th>
+                  <th>代理数</th>
+                  <th>更新时间</th>
+                  <th>操作</th>
+                </tr>
+              </thead>
+              <tbody id="subscriptions-table"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <section id="view-settings" class="view">
+        <div class="panel">
+          <div class="section-head">
+            <div>
+              <h3>连接与本地运行设置</h3>
+              <p>桌面端会用这些参数生成本地 `config.json` 并连接 `zenproxy-client`。</p>
+            </div>
+            <div class="inline-actions">
+              <button id="save-settings" class="primary-btn">保存设置</button>
+            </div>
+          </div>
+          <form id="settings-form" class="form-grid">
+            <label class="wide">
+              <span>服务器地址</span>
+              <input type="text" id="server-url" placeholder="https://zenproxy.top">
+            </label>
+            <label class="wide">
+              <span>API Key</span>
+              <input type="text" id="api-key" placeholder="你的 API Key">
+            </label>
+            <label>
+              <span>本地控制地址</span>
+              <input type="text" id="controller-input" placeholder="http://127.0.0.1:9090">
+            </label>
+            <label>
+              <span>本地 API Secret</span>
+              <input type="text" id="controller-secret" placeholder="your-secret">
+            </label>
+            <label class="wide">
+              <span>`zenproxy-client` 路径</span>
+              <input type="text" id="binary-input" placeholder="zenproxy-client.exe">
+            </label>
+            <label class="wide">
+              <span>生成的 config.json 路径</span>
+              <input type="text" id="config-input" placeholder="自动生成">
+            </label>
+            <label>
+              <span>端口起始</span>
+              <input type="number" id="port-start" min="1" max="65535">
+            </label>
+            <label>
+              <span>端口结束</span>
+              <input type="number" id="port-end" min="1" max="65535">
+            </label>
+            <label>
+              <span>默认采样数量</span>
+              <input type="number" id="default-fetch-count" min="1" max="5000">
+            </label>
+            <label>
+              <span>默认国家</span>
+              <input type="text" id="default-country" placeholder="可留空">
+            </label>
+            <label>
+              <span>默认类型</span>
+              <input type="text" id="default-proxy-type" placeholder="可留空">
+            </label>
+            <label class="checkbox">
+              <input type="checkbox" id="settings-auto-bind">
+              <span>默认导入后自动绑定</span>
+            </label>
+            <label class="checkbox">
+              <input type="checkbox" id="settings-dark">
+              <span>默认暗黑主题</span>
+            </label>
+          </form>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div id="toast" class="toast hidden"></div>
+  <script src="./app.js"></script>
+</body>
+</html>
