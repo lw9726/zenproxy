@@ -146,6 +146,9 @@ async fn start_background_tasks(state: Arc<AppState>) {
     let state_clone = state.clone();
     // Quality check — only checks proxies without quality data or with stale data
     tokio::spawn(async move {
+        let idle_interval = std::time::Duration::from_secs(
+            state_clone.config.quality.interval_mins.max(1) * 60,
+        );
         // Wait a bit on startup for proxies to be validated first
         tokio::time::sleep(std::time::Duration::from_secs(60)).await;
         loop {
@@ -156,9 +159,13 @@ async fn start_background_tasks(state: Arc<AppState>) {
                     0
                 }
             };
-            // If nothing needed checking, wait longer before next round
-            let pause = if checked == 0 { 300 } else { 30 };
-            tokio::time::sleep(std::time::Duration::from_secs(pause)).await;
+            // Drain backlog quickly; otherwise sleep according to configured interval.
+            let pause = if checked == 0 {
+                idle_interval
+            } else {
+                std::time::Duration::from_secs(60)
+            };
+            tokio::time::sleep(pause).await;
         }
     });
 
@@ -193,19 +200,24 @@ async fn start_background_tasks(state: Arc<AppState>) {
         }
     });
 
-    // Periodic subscription auto-refresh
-    if state.config.subscription.auto_refresh_interval_mins > 0 {
-        let state_clone = state.clone();
-        tokio::spawn(async move {
-            let interval = std::time::Duration::from_secs(
-                state_clone.config.subscription.auto_refresh_interval_mins * 60,
+    // Daily subscription auto-refresh
+    let state_clone = state.clone();
+    tokio::spawn(async move {
+        loop {
+            let sleep_for = duration_until_next_daily_refresh(
+                &state_clone.config.subscription.auto_refresh_daily_at,
+                &state_clone.config.subscription.auto_refresh_timezone,
             );
-            loop {
-                tokio::time::sleep(interval).await;
-                refresh_all_subscriptions(&state_clone).await;
-            }
-        });
-    }
+            tracing::info!(
+                "Next subscription auto-refresh scheduled in {} minutes at {} {}",
+                sleep_for.as_secs() / 60,
+                state_clone.config.subscription.auto_refresh_daily_at,
+                state_clone.config.subscription.auto_refresh_timezone,
+            );
+            tokio::time::sleep(sleep_for).await;
+            refresh_all_subscriptions(&state_clone).await;
+        }
+    });
 }
 
 async fn shutdown_signal() {
@@ -252,13 +264,59 @@ async fn refresh_all_subscriptions(state: &Arc<AppState>) {
 
     tracing::info!("Auto-refresh complete: {success} succeeded, {failed} failed");
 
-    // Run validation once after all subscriptions are refreshed
+    // Run validation, then quality check once after all subscriptions are refreshed
     if success > 0 {
         let state2 = state.clone();
         tokio::spawn(async move {
-            if let Err(e) = pool::validator::validate_all(state2).await {
+            if let Err(e) = pool::validator::validate_all(state2.clone()).await {
                 tracing::error!("Validation after auto-refresh failed: {e}");
+                return;
+            }
+            if let Err(e) = quality::checker::check_all(state2).await {
+                tracing::error!("Quality check after auto-refresh failed: {e}");
             }
         });
     }
+}
+
+fn duration_until_next_daily_refresh(schedule: &str, timezone: &str) -> std::time::Duration {
+    let fallback_hour = 4u32;
+    let fallback_minute = 0u32;
+    let fallback_tz = chrono_tz::Asia::Shanghai;
+
+    let (hour, minute) = parse_daily_time(schedule).unwrap_or((fallback_hour, fallback_minute));
+    let tz = timezone
+        .parse::<chrono_tz::Tz>()
+        .unwrap_or(fallback_tz);
+    let now = chrono::Utc::now().with_timezone(&tz);
+    let today = now.date_naive();
+
+    let today_target = today
+        .and_hms_opt(hour, minute, 0)
+        .unwrap_or_else(|| today.and_hms_opt(fallback_hour, fallback_minute, 0).unwrap());
+    let next_target = if now.naive_local() < today_target {
+        today_target
+    } else {
+        (today + chrono::Days::new(1))
+            .and_hms_opt(hour, minute, 0)
+            .unwrap_or_else(|| {
+                (today + chrono::Days::new(1))
+                    .and_hms_opt(fallback_hour, fallback_minute, 0)
+                    .unwrap()
+            })
+    };
+
+    (next_target - now.naive_local())
+        .to_std()
+        .unwrap_or_else(|_| std::time::Duration::from_secs(60))
+}
+
+fn parse_daily_time(value: &str) -> Option<(u32, u32)> {
+    let mut parts = value.trim().split(':');
+    let hour: u32 = parts.next()?.parse().ok()?;
+    let minute: u32 = parts.next()?.parse().ok()?;
+    if parts.next().is_some() || hour > 23 || minute > 59 {
+        return None;
+    }
+    Some((hour, minute))
 }

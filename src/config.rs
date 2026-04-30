@@ -111,14 +111,28 @@ pub struct QualityConfig {
 pub struct SubscriptionConfig {
     #[serde(default)]
     pub auto_refresh_interval_mins: u64, // 0 = disabled
+    #[serde(default = "default_subscription_daily_refresh_time")]
+    pub auto_refresh_daily_at: String,
+    #[serde(default = "default_subscription_daily_refresh_timezone")]
+    pub auto_refresh_timezone: String,
 }
 
 impl Default for SubscriptionConfig {
     fn default() -> Self {
         Self {
             auto_refresh_interval_mins: 0,
+            auto_refresh_daily_at: default_subscription_daily_refresh_time(),
+            auto_refresh_timezone: default_subscription_daily_refresh_timezone(),
         }
     }
+}
+
+fn default_subscription_daily_refresh_time() -> String {
+    "04:00".to_string()
+}
+
+fn default_subscription_daily_refresh_timezone() -> String {
+    "Asia/Shanghai".to_string()
 }
 
 impl AppConfig {

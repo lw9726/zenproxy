@@ -142,8 +142,12 @@ pub async fn add_subscription(
     let state2 = state.clone();
     tokio::spawn(async move {
         tracing::info!("Running initial validation for new proxies...");
-        if let Err(e) = crate::pool::validator::validate_all(state2).await {
+        if let Err(e) = crate::pool::validator::validate_all(state2.clone()).await {
             tracing::error!("Initial validation failed: {e}");
+            return;
+        }
+        if let Err(e) = crate::quality::checker::check_all(state2).await {
+            tracing::error!("Initial quality check failed: {e}");
         }
     });
 
@@ -327,8 +331,12 @@ pub async fn refresh_subscription(
     // Validate in background
     let state2 = state.clone();
     tokio::spawn(async move {
-        if let Err(e) = crate::pool::validator::validate_all(state2).await {
+        if let Err(e) = crate::pool::validator::validate_all(state2.clone()).await {
             tracing::error!("Validation after refresh failed: {e}");
+            return;
+        }
+        if let Err(e) = crate::quality::checker::check_all(state2).await {
+            tracing::error!("Quality check after refresh failed: {e}");
         }
     });
 

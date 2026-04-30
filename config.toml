@@ -32,8 +32,10 @@ error_threshold = 10
 batch_size = 30
 
 [quality]
-interval_mins = 120
+interval_mins = 60
 concurrency = 10
 
 [subscription]
-auto_refresh_interval_mins = 0    # 0 = disabled, e.g. 360 = 6h
+auto_refresh_interval_mins = 0    # deprecated
+auto_refresh_daily_at = "04:00"
+auto_refresh_timezone = "Asia/Shanghai"

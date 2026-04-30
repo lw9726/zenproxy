@@ -97,11 +97,13 @@ interval_mins = 30                        # 定时验证间隔（分钟）
 error_threshold = 10                      # 连续失败超过此值删除代理
 
 [quality]
-interval_mins = 120                       # 质检间隔（分钟），实际不使用此字段
+interval_mins = 60                        # 空闲时质检巡检间隔（分钟）；有积压时会按 1 分钟连续补跑
 concurrency = 10                          # 并发质检数
 
 [subscription]
-auto_refresh_interval_mins = 0            # 定时自动刷新间隔（分钟），0 = 禁用，例如 360 = 每 6 小时
+auto_refresh_interval_mins = 0            # 已废弃，保留兼容
+auto_refresh_daily_at = "04:00"           # 每天本地时间自动刷新订阅
+auto_refresh_timezone = "Asia/Shanghai"   # 定时刷新所使用的时区
 ```
 
 ### 认证方式
@@ -394,7 +396,8 @@ GET /api/proxies?api_key=xxx&page=1&per_page=50&status=valid&sort=name&dir=asc
 **触发时机：**
 - 导入/刷新订阅后**立即触发**
 - 定时任务：每 `validation.interval_mins` 分钟运行一次
-- 定时订阅刷新后自动触发（需开启 `auto_refresh_interval_mins`）
+- 新增/刷新订阅后：先测活，再立即补一轮质检
+- 每天 `subscription.auto_refresh_daily_at` 按 `subscription.auto_refresh_timezone` 自动刷新全部订阅；刷新完成后统一测活，再补一轮质检
 
 **流程：**
 1. 检查 Valid 代理中 `error_count > 0` 的（用户使用时失败过），重置为 Untested 重新验证
@@ -409,7 +412,7 @@ GET /api/proxies?api_key=xxx&page=1&per_page=50&status=valid&sort=name&dir=asc
 
 #### 订阅自动刷新
 
-在 `config.toml` 中设置 `[subscription] auto_refresh_interval_mins`（非 0 值）即可启用定时自动刷新。
+在 `config.toml` 中设置 `[subscription] auto_refresh_daily_at = "04:00"` 和 `auto_refresh_timezone = "Asia/Shanghai"` 即可按中国时间每天定时自动刷新。
 
 **刷新策略（平滑替换）：**
 - 拉取/解析失败时，旧代理**完全不受影响**
@@ -417,11 +420,17 @@ GET /api/proxies?api_key=xxx&page=1&per_page=50&status=valid&sort=name&dir=asc
 - 对 (server, port, proxy_type) 相同的代理，**保留**其验证状态、端口绑定和质检数据
 - 仅新增的代理标记为 Untested 等待验证
 - 仅已消失的旧代理才会被删除
-- 全部刷新完成后统一触发一次验证
+- 全部刷新完成后统一触发一次验证，随后立即补一轮质检
 
 #### 质量检测（Quality Check）
 
 通过 ip-api.com 和 ipinfo.io 获取代理的 IP 信息、地理位置、风险评估。
+
+调度规则：
+- 服务启动 60 秒后自动开始后台质检
+- 新增代理、手动刷新订阅、定时刷新订阅后，测活完成会立刻补一轮质检
+- 空闲巡检间隔由 `quality.interval_mins` 控制
+- 单轮最多质检 40 个节点；如果仍有待质检节点，会按 1 分钟节奏继续补跑
 
 **检测内容：**
 | 项目 | 来源 | 说明 |
