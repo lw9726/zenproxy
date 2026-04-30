@@ -51,10 +51,7 @@ fn parse_clash_vmess(
     port: u16,
 ) -> Option<ProxyConfig> {
     let uuid = proxy.get("uuid")?.as_str()?;
-    let alter_id = proxy
-        .get("alterId")
-        .and_then(|a| a.as_u64())
-        .unwrap_or(0);
+    let alter_id = proxy.get("alterId").and_then(|a| a.as_u64()).unwrap_or(0);
     let cipher = proxy
         .get("cipher")
         .and_then(|c| c.as_str())
@@ -140,10 +137,7 @@ fn parse_clash_trojan(
     port: u16,
 ) -> Option<ProxyConfig> {
     let password = proxy.get("password")?.as_str()?;
-    let sni = proxy
-        .get("sni")
-        .and_then(|s| s.as_str())
-        .unwrap_or(server);
+    let sni = proxy.get("sni").and_then(|s| s.as_str()).unwrap_or(server);
 
     let mut outbound = json!({
         "type": "trojan",
@@ -201,10 +195,7 @@ fn parse_clash_hysteria2(
     port: u16,
 ) -> Option<ProxyConfig> {
     let password = proxy.get("password")?.as_str()?;
-    let sni = proxy
-        .get("sni")
-        .and_then(|s| s.as_str())
-        .unwrap_or(server);
+    let sni = proxy.get("sni").and_then(|s| s.as_str()).unwrap_or(server);
 
     let mut outbound = json!({
         "type": "hysteria2",
@@ -256,19 +247,13 @@ fn parse_clash_socks(
     if let Some(username) = proxy.get("username").and_then(|u| u.as_str()) {
         if !username.is_empty() {
             outbound["username"] = json!(username);
-            let password = proxy
-                .get("password")
-                .and_then(|p| p.as_str())
-                .unwrap_or("");
+            let password = proxy.get("password").and_then(|p| p.as_str()).unwrap_or("");
             outbound["password"] = json!(password);
         }
     }
 
     // Some Clash configs use "tls" field for socks5
-    let tls_enabled = proxy
-        .get("tls")
-        .and_then(|t| t.as_bool())
-        .unwrap_or(false);
+    let tls_enabled = proxy.get("tls").and_then(|t| t.as_bool()).unwrap_or(false);
     if tls_enabled {
         apply_clash_tls(proxy, &mut outbound, server);
     }
@@ -297,18 +282,12 @@ fn parse_clash_http(
     if let Some(username) = proxy.get("username").and_then(|u| u.as_str()) {
         if !username.is_empty() {
             outbound["username"] = json!(username);
-            let password = proxy
-                .get("password")
-                .and_then(|p| p.as_str())
-                .unwrap_or("");
+            let password = proxy.get("password").and_then(|p| p.as_str()).unwrap_or("");
             outbound["password"] = json!(password);
         }
     }
 
-    let tls_enabled = proxy
-        .get("tls")
-        .and_then(|t| t.as_bool())
-        .unwrap_or(false);
+    let tls_enabled = proxy.get("tls").and_then(|t| t.as_bool()).unwrap_or(false);
     if tls_enabled {
         apply_clash_tls(proxy, &mut outbound, server);
     }
@@ -384,15 +363,8 @@ fn apply_clash_transport(
     }
 }
 
-fn apply_clash_tls(
-    proxy: &serde_yaml::Value,
-    outbound: &mut serde_json::Value,
-    server: &str,
-) {
-    let tls_enabled = proxy
-        .get("tls")
-        .and_then(|t| t.as_bool())
-        .unwrap_or(false);
+fn apply_clash_tls(proxy: &serde_yaml::Value, outbound: &mut serde_json::Value, server: &str) {
+    let tls_enabled = proxy.get("tls").and_then(|t| t.as_bool()).unwrap_or(false);
     if tls_enabled {
         let sni = proxy
             .get("servername")

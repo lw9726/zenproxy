@@ -49,6 +49,8 @@ ZENPROXY_SERVER = "https://zenproxy.top"   # ZenProxy 服务器地址
 ZENPROXY_API_KEY = "your-api-key"          # 你的 API Key
 ```
 
+Relay 示例需要该 API Key 对应用户已开启中转权限。新注册用户、Linux.do 首次登录用户和管理员新建用户默认都没有中转权限，需要管理员在 `/admin` 的用户管理中手动开启。
+
 ---
 
 ## 示例 1：parallel_proxy.py — 本地并行多 IP
@@ -169,6 +171,8 @@ python rotating_proxy.py
 
 **场景**：无需部署本地客户端，直接通过服务端 Relay 端点并行使用 10 个不同代理。
 
+**权限**：需要使用已开启中转权限的用户 API Key；否则 `/api/relay` 会返回未授权错误。
+
 **流程**：
 
 ```
@@ -215,6 +219,8 @@ python parallel_relay.py
 ## 示例 4：rotating_relay.py — Relay 轮换多 IP
 
 **场景**：无需本地客户端，通过 Relay 端点完成 100 次请求，每批 10 个并行。
+
+**权限**：需要使用已开启中转权限的用户 API Key；否则 `/api/relay` 会返回未授权错误。
 
 **流程**：
 
@@ -264,7 +270,9 @@ python rotating_relay.py
   "experimental": {
     "clash_api": {
       "external_controller": "127.0.0.1:9090",
-      "secret": "your-secret"
+      "secret": "your-secret",
+      "zenproxy_port_start": 20001,
+      "zenproxy_port_end": 30000
     }
   },
   "outbounds": [
@@ -275,6 +283,7 @@ python rotating_relay.py
 
 - `external_controller`：Clash API 监听地址，脚本中的 `CLASH_API` 需与此一致
 - `secret`：API 认证密钥，脚本中的 `CLASH_SECRET` 需与此一致
+- `zenproxy_port_start` / `zenproxy_port_end`：本地代理自动绑定端口范围，默认 `20001-30000`，如果本机已有 200xx 服务，可改为如 `60001-65535`
 - 代理 outbound 会在运行时通过 API 动态创建，无需预先配置
 
 ---
@@ -325,3 +334,11 @@ Relay 模式在 URL 参数中添加：
 ```
 /api/relay?api_key=xxx&url=target&country=US&chatgpt=true
 ```
+
+**Q: Relay 示例返回 401/未授权怎么办？**
+
+A: 检查两点：`api_key` 必须放在 query 参数中，不能只放 `Authorization` Header；并且管理员需要在用户管理里为该用户手动开启中转权限。
+
+**Q: 本机 20001 开始的端口已经被占用了怎么办？**
+
+A: 修改 `config.json` 中的 `zenproxy_port_start` / `zenproxy_port_end`，例如改为 `60001-65535`，再重启 sing-box 客户端。

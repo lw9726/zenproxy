@@ -1,6 +1,6 @@
 use crate::api::auth;
 use crate::error::AppError;
-use crate::pool::manager::{ProxyFilter, ProxyStatus};
+use crate::pool::manager::{ProxyFilter, ProxyListQuery};
 use crate::AppState;
 use axum::extract::{Query, State};
 use axum::http::HeaderMap;
@@ -75,38 +75,35 @@ pub async fn fetch_proxies(
 pub async fn list_all_proxies(
     State(state): State<Arc<AppState>>,
     headers: HeaderMap,
-    Query(query): Query<ApiKeyQuery>,
+    Query(query): Query<UserProxyListQuery>,
 ) -> Result<Json<serde_json::Value>, AppError> {
     auth::authenticate_request(&state, &headers, query.api_key.as_deref()).await?;
 
-    let proxies = state.pool.get_all();
-    let total = proxies.len();
-    let valid = proxies.iter().filter(|p| p.status == ProxyStatus::Valid).count();
-    let untested = proxies.iter().filter(|p| p.status == ProxyStatus::Untested).count();
-    let invalid = proxies.iter().filter(|p| p.status == ProxyStatus::Invalid).count();
-    let quality_checked = proxies.iter().filter(|p| p.quality.is_some()).count();
-    let chatgpt_count = proxies.iter().filter(|p| p.quality.as_ref().map_or(false, |q| q.chatgpt_accessible)).count();
-    let google_count = proxies.iter().filter(|p| p.quality.as_ref().map_or(false, |q| q.google_accessible)).count();
-    let residential_count = proxies.iter().filter(|p| p.quality.as_ref().map_or(false, |q| q.is_residential)).count();
-
-    let proxy_list: Vec<serde_json::Value> = proxies.iter().map(proxy_to_json).collect();
+    let stats = state.pool.stats();
+    let result = state.pool.list_proxies(&query.list);
+    let proxy_list: Vec<serde_json::Value> = result.proxies.iter().map(proxy_to_json).collect();
 
     Ok(Json(json!({
         "proxies": proxy_list,
-        "total": total,
-        "valid": valid,
-        "untested": untested,
-        "invalid": invalid,
-        "quality_checked": quality_checked,
-        "chatgpt_accessible": chatgpt_count,
-        "google_accessible": google_count,
-        "residential": residential_count,
+        "total": stats.total,
+        "filtered_total": result.total,
+        "page": result.page,
+        "per_page": result.per_page,
+        "valid": stats.valid,
+        "untested": stats.untested,
+        "invalid": stats.invalid,
+        "quality_checked": stats.quality_checked,
+        "chatgpt_accessible": stats.chatgpt_accessible,
+        "google_accessible": stats.google_accessible,
+        "residential": stats.residential,
     })))
 }
 
 #[derive(Debug, Deserialize)]
-pub struct ApiKeyQuery {
+pub struct UserProxyListQuery {
     pub api_key: Option<String>,
+    #[serde(flatten)]
+    pub list: ProxyListQuery,
 }
 
 fn proxy_to_json(p: &crate::pool::manager::PoolProxy) -> serde_json::Value {

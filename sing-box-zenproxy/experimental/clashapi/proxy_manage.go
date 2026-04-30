@@ -128,19 +128,19 @@ func (bm *BindingManager) clearStoredProxies(w http.ResponseWriter, r *http.Requ
 // --- Port Pool ---
 
 type PortPool struct {
-	basePort uint16
-	maxPorts uint16
-	used     map[uint16]string // port -> proxy_id
-	mu       sync.Mutex
-	logger   log.Logger
+	start  uint16
+	end    uint16
+	used   map[uint16]string // port -> proxy_id
+	mu     sync.Mutex
+	logger log.Logger
 }
 
-func newPortPool(basePort, maxPorts uint16, logger log.Logger) *PortPool {
+func newPortPool(start, end uint16, logger log.Logger) *PortPool {
 	return &PortPool{
-		basePort: basePort,
-		maxPorts: maxPorts,
-		used:     make(map[uint16]string),
-		logger:   logger,
+		start:  start,
+		end:    end,
+		used:   make(map[uint16]string),
+		logger: logger,
 	}
 }
 
@@ -148,14 +148,31 @@ func (pp *PortPool) Allocate(proxyID string) (uint16, error) {
 	pp.mu.Lock()
 	defer pp.mu.Unlock()
 
-	for i := uint16(0); i < pp.maxPorts; i++ {
-		port := pp.basePort + i
-		if _, ok := pp.used[port]; !ok {
-			pp.used[port] = proxyID
-			return port, nil
+	for port := uint32(pp.start); port <= uint32(pp.end); port++ {
+		port16 := uint16(port)
+		if _, ok := pp.used[port16]; !ok {
+			pp.used[port16] = proxyID
+			return port16, nil
 		}
 	}
-	return 0, fmt.Errorf("no available ports in range %d-%d", pp.basePort, pp.basePort+pp.maxPorts-1)
+	return 0, fmt.Errorf("no available ports in range %d-%d", pp.start, pp.end)
+}
+
+func (pp *PortPool) Reserve(port uint16, proxyID string) error {
+	if !pp.Contains(port) {
+		return nil
+	}
+	pp.mu.Lock()
+	defer pp.mu.Unlock()
+	if existing, ok := pp.used[port]; ok && existing != proxyID {
+		return fmt.Errorf("port %d is already allocated", port)
+	}
+	pp.used[port] = proxyID
+	return nil
+}
+
+func (pp *PortPool) Contains(port uint16) bool {
+	return port >= pp.start && port <= pp.end
 }
 
 func (pp *PortPool) Release(port uint16) {

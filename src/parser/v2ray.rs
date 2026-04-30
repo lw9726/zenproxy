@@ -21,7 +21,10 @@ pub fn parse_uri(uri: &str) -> Option<ProxyConfig> {
         parse_ss(uri)
     } else if uri.starts_with("hy2://") || uri.starts_with("hysteria2://") {
         parse_hysteria2(uri)
-    } else if uri.starts_with("socks://") || uri.starts_with("socks5://") || uri.starts_with("socks4://") {
+    } else if uri.starts_with("socks://")
+        || uri.starts_with("socks5://")
+        || uri.starts_with("socks4://")
+    {
         parse_socks(uri)
     } else if uri.starts_with("http://") || uri.starts_with("https://") {
         parse_http_proxy(uri)
@@ -40,17 +43,25 @@ fn parse_vmess(uri: &str) -> Option<ProxyConfig> {
     let v: serde_json::Value = serde_json::from_str(&json_str).ok()?;
 
     let server = v["add"].as_str().unwrap_or("").to_string();
-    let port = v["port"].as_u64()
+    let port = v["port"]
+        .as_u64()
         .or_else(|| v["port"].as_str().and_then(|s| s.parse().ok()))
         .unwrap_or(0) as u16;
     let uuid = v["id"].as_str().unwrap_or("").to_string();
-    let alter_id = v["aid"].as_u64()
+    let alter_id = v["aid"]
+        .as_u64()
         .or_else(|| v["aid"].as_str().and_then(|s| s.parse().ok()))
         .unwrap_or(0);
-    let name = v["ps"].as_str().unwrap_or(&format!("{server}:{port}")).to_string();
+    let name = v["ps"]
+        .as_str()
+        .unwrap_or(&format!("{server}:{port}"))
+        .to_string();
     let net = v["net"].as_str().unwrap_or("tcp");
     let tls = v["tls"].as_str().unwrap_or("");
-    let sni = v["sni"].as_str().or_else(|| v["host"].as_str()).unwrap_or("");
+    let sni = v["sni"]
+        .as_str()
+        .or_else(|| v["host"].as_str())
+        .unwrap_or("");
     let host = v["host"].as_str().unwrap_or("");
     let path = v["path"].as_str().unwrap_or("");
 
@@ -113,7 +124,9 @@ fn parse_vmess(uri: &str) -> Option<ProxyConfig> {
 
 fn parse_vless(uri: &str) -> Option<ProxyConfig> {
     let without_scheme = uri.strip_prefix("vless://")?;
-    let (main_part, fragment) = without_scheme.rsplit_once('#').unwrap_or((without_scheme, ""));
+    let (main_part, fragment) = without_scheme
+        .rsplit_once('#')
+        .unwrap_or((without_scheme, ""));
     let name = percent_encoding::percent_decode_str(fragment)
         .decode_utf8_lossy()
         .to_string();
@@ -121,7 +134,9 @@ fn parse_vless(uri: &str) -> Option<ProxyConfig> {
     let (userinfo, host_and_params) = main_part.split_once('@')?;
     let uuid = userinfo.to_string();
 
-    let (host_port, query) = host_and_params.split_once('?').unwrap_or((host_and_params, ""));
+    let (host_port, query) = host_and_params
+        .split_once('?')
+        .unwrap_or((host_and_params, ""));
     let (server, port_str) = parse_host_port(host_port)?;
     let port: u16 = port_str.parse().ok()?;
     let params = parse_query(query);
@@ -133,7 +148,11 @@ fn parse_vless(uri: &str) -> Option<ProxyConfig> {
     let host = params.get("host").map(|s| s.as_str()).unwrap_or("");
     let path = params.get("path").map(|s| s.as_str()).unwrap_or("");
 
-    let display_name = if name.is_empty() { format!("{server}:{port}") } else { name };
+    let display_name = if name.is_empty() {
+        format!("{server}:{port}")
+    } else {
+        name
+    };
 
     let mut outbound = json!({
         "type": "vless",
@@ -181,13 +200,17 @@ fn parse_vless(uri: &str) -> Option<ProxyConfig> {
 
 fn parse_trojan(uri: &str) -> Option<ProxyConfig> {
     let without_scheme = uri.strip_prefix("trojan://")?;
-    let (main_part, fragment) = without_scheme.rsplit_once('#').unwrap_or((without_scheme, ""));
+    let (main_part, fragment) = without_scheme
+        .rsplit_once('#')
+        .unwrap_or((without_scheme, ""));
     let name = percent_encoding::percent_decode_str(fragment)
         .decode_utf8_lossy()
         .to_string();
 
     let (password, host_and_params) = main_part.split_once('@')?;
-    let (host_port, query) = host_and_params.split_once('?').unwrap_or((host_and_params, ""));
+    let (host_port, query) = host_and_params
+        .split_once('?')
+        .unwrap_or((host_and_params, ""));
     let (server, port_str) = parse_host_port(host_port)?;
     let port: u16 = port_str.parse().ok()?;
     let params = parse_query(query);
@@ -197,7 +220,11 @@ fn parse_trojan(uri: &str) -> Option<ProxyConfig> {
     let host = params.get("host").map(|s| s.as_str()).unwrap_or("");
     let path = params.get("path").map(|s| s.as_str()).unwrap_or("");
 
-    let display_name = if name.is_empty() { format!("{server}:{port}") } else { name };
+    let display_name = if name.is_empty() {
+        format!("{server}:{port}")
+    } else {
+        name
+    };
 
     let mut outbound = json!({
         "type": "trojan",
@@ -224,7 +251,9 @@ fn parse_trojan(uri: &str) -> Option<ProxyConfig> {
 
 fn parse_ss(uri: &str) -> Option<ProxyConfig> {
     let without_scheme = uri.strip_prefix("ss://")?;
-    let (main_part, fragment) = without_scheme.rsplit_once('#').unwrap_or((without_scheme, ""));
+    let (main_part, fragment) = without_scheme
+        .rsplit_once('#')
+        .unwrap_or((without_scheme, ""));
     let name = percent_encoding::percent_decode_str(fragment)
         .decode_utf8_lossy()
         .to_string();
@@ -245,7 +274,12 @@ fn parse_ss(uri: &str) -> Option<ProxyConfig> {
         let host_port_clean = host_port.split('?').next().unwrap_or(host_port);
         let (server, port_str) = parse_host_port(host_port_clean)?;
         let port: u16 = port_str.parse().ok()?;
-        (method.to_string(), password.to_string(), server.to_string(), port)
+        (
+            method.to_string(),
+            password.to_string(),
+            server.to_string(),
+            port,
+        )
     } else {
         // Legacy format
         let decoded = base64::engine::general_purpose::STANDARD
@@ -257,10 +291,19 @@ fn parse_ss(uri: &str) -> Option<ProxyConfig> {
         let (method, password) = method_pass.split_once(':')?;
         let (server, port_str) = parse_host_port(host_port)?;
         let port: u16 = port_str.parse().ok()?;
-        (method.to_string(), password.to_string(), server.to_string(), port)
+        (
+            method.to_string(),
+            password.to_string(),
+            server.to_string(),
+            port,
+        )
     };
 
-    let display_name = if name.is_empty() { format!("{server}:{port}") } else { name };
+    let display_name = if name.is_empty() {
+        format!("{server}:{port}")
+    } else {
+        name
+    };
 
     let outbound = json!({
         "type": "shadowsocks",
@@ -283,22 +326,33 @@ fn parse_hysteria2(uri: &str) -> Option<ProxyConfig> {
     let without_scheme = uri
         .strip_prefix("hy2://")
         .or_else(|| uri.strip_prefix("hysteria2://"))?;
-    let (main_part, fragment) = without_scheme.rsplit_once('#').unwrap_or((without_scheme, ""));
+    let (main_part, fragment) = without_scheme
+        .rsplit_once('#')
+        .unwrap_or((without_scheme, ""));
     let name = percent_encoding::percent_decode_str(fragment)
         .decode_utf8_lossy()
         .to_string();
 
     let (password, host_and_params) = main_part.split_once('@')?;
-    let (host_port, query) = host_and_params.split_once('?').unwrap_or((host_and_params, ""));
+    let (host_port, query) = host_and_params
+        .split_once('?')
+        .unwrap_or((host_and_params, ""));
     let (server, port_str) = parse_host_port(host_port)?;
     let port: u16 = port_str.parse().ok()?;
     let params = parse_query(query);
 
     let sni = params.get("sni").map(|s| s.as_str()).unwrap_or("");
     let obfs = params.get("obfs").map(|s| s.as_str()).unwrap_or("");
-    let obfs_password = params.get("obfs-password").map(|s| s.as_str()).unwrap_or("");
+    let obfs_password = params
+        .get("obfs-password")
+        .map(|s| s.as_str())
+        .unwrap_or("");
 
-    let display_name = if name.is_empty() { format!("{server}:{port}") } else { name };
+    let display_name = if name.is_empty() {
+        format!("{server}:{port}")
+    } else {
+        name
+    };
 
     let mut outbound = json!({
         "type": "hysteria2",
@@ -338,7 +392,9 @@ fn parse_socks(uri: &str) -> Option<ProxyConfig> {
         (uri.strip_prefix("socks://")?, "5")
     };
 
-    let (main_part, fragment) = without_scheme.rsplit_once('#').unwrap_or((without_scheme, ""));
+    let (main_part, fragment) = without_scheme
+        .rsplit_once('#')
+        .unwrap_or((without_scheme, ""));
     let name = percent_encoding::percent_decode_str(fragment)
         .decode_utf8_lossy()
         .to_string();
@@ -361,7 +417,11 @@ fn parse_socks(uri: &str) -> Option<ProxyConfig> {
         return None;
     }
 
-    let display_name = if name.is_empty() { format!("{server}:{port}") } else { name };
+    let display_name = if name.is_empty() {
+        format!("{server}:{port}")
+    } else {
+        name
+    };
 
     let mut outbound = json!({
         "type": "socks",
@@ -392,7 +452,9 @@ fn parse_http_proxy(uri: &str) -> Option<ProxyConfig> {
         uri.strip_prefix("http://")?
     };
 
-    let (main_part, fragment) = without_scheme.rsplit_once('#').unwrap_or((without_scheme, ""));
+    let (main_part, fragment) = without_scheme
+        .rsplit_once('#')
+        .unwrap_or((without_scheme, ""));
     let name = percent_encoding::percent_decode_str(fragment)
         .decode_utf8_lossy()
         .to_string();
@@ -418,7 +480,11 @@ fn parse_http_proxy(uri: &str) -> Option<ProxyConfig> {
         return None;
     }
 
-    let display_name = if name.is_empty() { format!("{server}:{port}") } else { name };
+    let display_name = if name.is_empty() {
+        format!("{server}:{port}")
+    } else {
+        name
+    };
 
     let mut outbound = json!({
         "type": "http",
@@ -494,7 +560,10 @@ fn apply_transport(
             });
         }
         "grpc" => {
-            let service_name = params.get("serviceName").map(|s| s.as_str()).unwrap_or(path);
+            let service_name = params
+                .get("serviceName")
+                .map(|s| s.as_str())
+                .unwrap_or(path);
             outbound["transport"] = json!({
                 "type": "grpc",
                 "service_name": service_name

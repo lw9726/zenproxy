@@ -5,14 +5,21 @@ use axum::extract::{Query, State};
 use axum::http::{HeaderMap, HeaderValue};
 use axum::response::{IntoResponse, Redirect, Response};
 use axum::Json;
+use base64::Engine;
+use ring::{
+    digest, pbkdf2,
+    rand::{SecureRandom, SystemRandom},
+};
 use serde::Deserialize;
 use serde_json::json;
+use std::num::NonZeroU32;
 use std::sync::Arc;
 
 const AUTHORIZE_URL: &str = "https://connect.linux.do/oauth2/authorize";
 const TOKEN_URL: &str = "https://connect.linux.do/oauth2/token";
 const USERINFO_URL: &str = "https://connect.linux.do/api/user";
 pub const COOKIE_NAME: &str = "zenproxy_session";
+const PASSWORD_ITERATIONS: u32 = 210_000;
 
 #[derive(Debug, Deserialize)]
 pub struct CallbackQuery {
@@ -35,13 +42,104 @@ struct LinuxDoUser {
     silenced: Option<bool>,
 }
 
+#[derive(Debug, Deserialize)]
+pub struct AccountAuthRequest {
+    username: String,
+    password: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct RegisterRequest {
+    username: String,
+    password: String,
+    name: Option<String>,
+}
+
+pub async fn settings(
+    State(state): State<Arc<AppState>>,
+) -> Result<Json<serde_json::Value>, AppError> {
+    let settings = state.db.get_auth_settings()?;
+    Ok(Json(json!(settings)))
+}
+
 pub async fn login(State(state): State<Arc<AppState>>) -> Response {
+    if let Ok(settings) = state.db.get_auth_settings() {
+        if !settings.allow_linux_do_login {
+            return Json(json!({ "error": "Linux.do login is disabled" })).into_response();
+        }
+    }
     let client_id = &state.config.oauth.client_id;
     let redirect_uri = &state.config.oauth.redirect_uri;
     let url = format!(
         "{AUTHORIZE_URL}?client_id={client_id}&redirect_uri={redirect_uri}&response_type=code"
     );
     Redirect::temporary(&url).into_response()
+}
+
+pub async fn account_login(
+    State(state): State<Arc<AppState>>,
+    Json(req): Json<AccountAuthRequest>,
+) -> Result<Response, AppError> {
+    let settings = state.db.get_auth_settings()?;
+    if !settings.allow_account_login {
+        return Err(AppError::Unauthorized("Account login is disabled".into()));
+    }
+    let username = normalize_username(&req.username)?;
+    let user = state
+        .db
+        .get_user_by_username(&username)?
+        .ok_or_else(|| AppError::Unauthorized("Invalid username or password".into()))?;
+
+    if user.is_banned {
+        return Err(AppError::Unauthorized("Account banned".into()));
+    }
+    let password_hash = user.password_hash.as_deref().ok_or_else(|| {
+        AppError::Unauthorized("Password login is not enabled for this user".into())
+    })?;
+    if !verify_password(&req.password, password_hash) {
+        return Err(AppError::Unauthorized(
+            "Invalid username or password".into(),
+        ));
+    }
+    create_login_response(&state, &user.id)
+}
+
+pub async fn register(
+    State(state): State<Arc<AppState>>,
+    Json(req): Json<RegisterRequest>,
+) -> Result<Response, AppError> {
+    let settings = state.db.get_auth_settings()?;
+    if !settings.allow_registration {
+        return Err(AppError::Unauthorized("Registration is disabled".into()));
+    }
+    if !settings.allow_account_login {
+        return Err(AppError::Unauthorized("Account login is disabled".into()));
+    }
+    let username = normalize_username(&req.username)?;
+    validate_password(&req.password)?;
+    if state.db.get_user_by_username(&username)?.is_some() {
+        return Err(AppError::BadRequest("Username already exists".into()));
+    }
+
+    let now = chrono::Utc::now().to_rfc3339();
+    let user = User {
+        id: uuid::Uuid::new_v4().to_string(),
+        username,
+        name: req.name.filter(|s| !s.trim().is_empty()),
+        avatar_template: None,
+        active: true,
+        trust_level: 0,
+        silenced: false,
+        is_banned: false,
+        can_use_relay: false,
+        api_key: uuid::Uuid::new_v4().to_string(),
+        auth_provider: "account".to_string(),
+        password_hash: Some(hash_password(&req.password)?),
+        created_at: now.clone(),
+        updated_at: now,
+    };
+    state.db.upsert_user(&user)?;
+    create_login_response(&state, &user.id)
 }
 
 pub async fn callback(
@@ -112,8 +210,8 @@ pub async fn callback(
     let now = chrono::Utc::now().to_rfc3339();
     let user_id = ldo_user.id.to_string();
 
-    // Check if user exists to preserve api_key
-    let api_key = match state.db.get_user_by_id(&user_id)? {
+    // Check if user exists to preserve api_key and admin-managed permissions.
+    let (api_key, can_use_relay) = match state.db.get_user_by_id(&user_id)? {
         Some(existing) => {
             if existing.is_banned {
                 let html = r#"<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Banned</title>
@@ -125,9 +223,9 @@ pub async fn callback(
                 <p style="margin-top:16px"><a href="/">Back</a></p></div></body></html>"#;
                 return Ok(axum::response::Html(html).into_response());
             }
-            existing.api_key
+            (existing.api_key, existing.can_use_relay)
         }
-        None => uuid::Uuid::new_v4().to_string(),
+        None => (uuid::Uuid::new_v4().to_string(), false),
     };
 
     let user = User {
@@ -139,31 +237,17 @@ pub async fn callback(
         trust_level,
         silenced: ldo_user.silenced.unwrap_or(false),
         is_banned: false,
+        can_use_relay,
         api_key,
+        auth_provider: "linux_do".to_string(),
+        password_hash: None,
         created_at: now.clone(),
         updated_at: now,
     };
 
     state.db.upsert_user(&user)?;
 
-    // Create session
-    let session = state.db.create_session(&user_id)?;
-
-    // Set cookie and redirect
-    let secure = if state.config.oauth.redirect_uri.starts_with("https") {
-        "; Secure"
-    } else {
-        ""
-    };
-    let cookie = format!(
-        "{COOKIE_NAME}={}; Path=/; HttpOnly; SameSite=Lax; Max-Age=604800{secure}",
-        session.id
-    );
-    let mut response = Redirect::temporary("/").into_response();
-    response
-        .headers_mut()
-        .insert("Set-Cookie", HeaderValue::from_str(&cookie).unwrap());
-    Ok(response)
+    create_redirect_login_response(&state, &user_id)
 }
 
 pub async fn me(
@@ -345,5 +429,115 @@ fn get_cached_user(state: &AppState, cache_key: &str) -> Option<User> {
 
 fn cache_user(state: &AppState, cache_key: &str, user: &User) {
     let expires = tokio::time::Instant::now() + AUTH_CACHE_TTL;
-    state.auth_cache.insert(cache_key.to_string(), (user.clone(), expires));
+    state
+        .auth_cache
+        .insert(cache_key.to_string(), (user.clone(), expires));
+}
+
+fn normalize_username(username: &str) -> Result<String, AppError> {
+    let username = username.trim();
+    if username.len() < 3 || username.len() > 40 {
+        return Err(AppError::BadRequest(
+            "Username must be 3-40 characters".into(),
+        ));
+    }
+    if !username
+        .chars()
+        .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-' || c == '.')
+    {
+        return Err(AppError::BadRequest(
+            "Username may only contain letters, numbers, _, - and .".into(),
+        ));
+    }
+    Ok(username.to_string())
+}
+
+fn validate_password(password: &str) -> Result<(), AppError> {
+    if password.len() < 8 {
+        return Err(AppError::BadRequest(
+            "Password must be at least 8 characters".into(),
+        ));
+    }
+    if password.len() > 256 {
+        return Err(AppError::BadRequest("Password is too long".into()));
+    }
+    Ok(())
+}
+
+pub fn hash_password(password: &str) -> Result<String, AppError> {
+    validate_password(password)?;
+    let rng = SystemRandom::new();
+    let mut salt = [0u8; 16];
+    rng.fill(&mut salt)
+        .map_err(|_| AppError::Internal("Failed to generate password salt".into()))?;
+    let mut hash = [0u8; digest::SHA256_OUTPUT_LEN];
+    let iterations = NonZeroU32::new(PASSWORD_ITERATIONS).unwrap();
+    pbkdf2::derive(
+        pbkdf2::PBKDF2_HMAC_SHA256,
+        iterations,
+        &salt,
+        password.as_bytes(),
+        &mut hash,
+    );
+    let b64 = base64::engine::general_purpose::STANDARD_NO_PAD;
+    Ok(format!(
+        "pbkdf2_sha256${PASSWORD_ITERATIONS}${}${}",
+        b64.encode(salt),
+        b64.encode(hash)
+    ))
+}
+
+fn verify_password(password: &str, stored: &str) -> bool {
+    let parts: Vec<&str> = stored.split('$').collect();
+    if parts.len() != 4 || parts[0] != "pbkdf2_sha256" {
+        return false;
+    }
+    let iterations = match parts[1].parse::<u32>().ok().and_then(NonZeroU32::new) {
+        Some(value) => value,
+        None => return false,
+    };
+    let b64 = base64::engine::general_purpose::STANDARD_NO_PAD;
+    let salt = match b64.decode(parts[2]) {
+        Ok(value) => value,
+        Err(_) => return false,
+    };
+    let hash = match b64.decode(parts[3]) {
+        Ok(value) => value,
+        Err(_) => return false,
+    };
+    pbkdf2::verify(
+        pbkdf2::PBKDF2_HMAC_SHA256,
+        iterations,
+        &salt,
+        password.as_bytes(),
+        &hash,
+    )
+    .is_ok()
+}
+
+fn create_login_response(state: &AppState, user_id: &str) -> Result<Response, AppError> {
+    let session = state.db.create_session(user_id)?;
+    let secure = if state.config.oauth.redirect_uri.starts_with("https") {
+        "; Secure"
+    } else {
+        ""
+    };
+    let cookie = format!(
+        "{COOKIE_NAME}={}; Path=/; HttpOnly; SameSite=Lax; Max-Age=604800{secure}",
+        session.id
+    );
+    let mut response = Json(json!({ "message": "Logged in" })).into_response();
+    response
+        .headers_mut()
+        .insert("Set-Cookie", HeaderValue::from_str(&cookie).unwrap());
+    Ok(response)
+}
+
+fn create_redirect_login_response(state: &AppState, user_id: &str) -> Result<Response, AppError> {
+    let mut response = create_login_response(state, user_id)?;
+    *response.status_mut() = axum::http::StatusCode::FOUND;
+    response
+        .headers_mut()
+        .insert("Location", HeaderValue::from_static("/"));
+    Ok(response)
 }

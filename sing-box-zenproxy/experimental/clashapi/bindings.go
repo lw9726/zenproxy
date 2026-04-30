@@ -88,6 +88,9 @@ func (bm *BindingManager) createBinding(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	autoAllocated := false
+	reservedPort := false
+
 	// If proxy_id is specified, load outbound from store and auto-assign port
 	if req.ProxyID != "" {
 		proxy := bm.store.GetProxy(req.ProxyID)
@@ -108,6 +111,7 @@ func (bm *BindingManager) createBinding(w http.ResponseWriter, r *http.Request) 
 				return
 			}
 			req.ListenPort = port
+			autoAllocated = true
 		}
 	}
 
@@ -117,10 +121,22 @@ func (bm *BindingManager) createBinding(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	if !autoAllocated && bm.portPool != nil {
+		reserveID := req.ProxyID
+		if reserveID == "" {
+			reserveID = req.Tag
+		}
+		if err := bm.portPool.Reserve(req.ListenPort, reserveID); err != nil {
+			render.Status(r, http.StatusConflict)
+			render.JSON(w, r, newError(err.Error()))
+			return
+		}
+		reservedPort = bm.portPool.Contains(req.ListenPort)
+	}
+
 	binding, err := bm.createBindingInternal(req.Tag, req.ListenPort, req.Outbound, req.ProxyID)
 	if err != nil {
-		// Release port if auto-allocated
-		if req.ProxyID != "" && bm.portPool != nil {
+		if bm.portPool != nil && (autoAllocated || reservedPort) {
 			bm.portPool.Release(req.ListenPort)
 		}
 		render.Status(r, http.StatusInternalServerError)
@@ -142,6 +158,12 @@ func (bm *BindingManager) createBindingInternal(tag string, listenPort uint16, o
 	if _, exists := bm.bindings[tag]; exists {
 		bm.mu.Unlock()
 		return nil, fmt.Errorf("binding already exists: %s", tag)
+	}
+	for _, binding := range bm.bindings {
+		if binding.ListenPort == listenPort {
+			bm.mu.Unlock()
+			return nil, fmt.Errorf("listen_port already in use: %d", listenPort)
+		}
 	}
 	bm.mu.Unlock()
 
@@ -269,10 +291,10 @@ func (bm *BindingManager) removeBindingResources(binding *BindingInfo) {
 // --- Batch operations ---
 
 type batchCreateRequest struct {
-	ProxyIDs []string          `json:"proxy_ids"`
-	All      bool              `json:"all"`
-	Count    int               `json:"count"`
-	Filter   *batchFilter      `json:"filter"`
+	ProxyIDs []string     `json:"proxy_ids"`
+	All      bool         `json:"all"`
+	Count    int          `json:"count"`
+	Filter   *batchFilter `json:"filter"`
 }
 
 type batchFilter struct {

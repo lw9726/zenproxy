@@ -2602,6 +2602,7 @@ dependencies = [
  "pulldown-cmark",
  "rand 0.8.5",
  "reqwest",
+ "ring",
  "rusqlite",
  "scraper",
  "serde",

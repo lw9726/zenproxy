@@ -10,11 +10,7 @@ use std::sync::Arc;
 
 /// Headers that should NOT be forwarded from the user request to the target.
 /// Only hop-by-hop headers and `host` are skipped.
-const SKIP_HEADERS: &[&str] = &[
-    "host",
-    "connection",
-    "transfer-encoding",
-];
+const SKIP_HEADERS: &[&str] = &["host", "connection", "transfer-encoding"];
 
 #[derive(Debug, Deserialize)]
 pub struct RelayParams {
@@ -43,9 +39,16 @@ pub async fn relay_request(
 ) -> Result<Response, AppError> {
     // Authenticate: relay requires api_key query parameter only,
     // so Authorization/Cookie headers are free for the target.
-    let api_key = params.api_key.as_deref()
+    let api_key = params
+        .api_key
+        .as_deref()
         .ok_or_else(|| AppError::BadRequest("Relay requires 'api_key' query parameter".into()))?;
-    auth::authenticate_request(&state, &headers, Some(api_key)).await?;
+    let user = auth::authenticate_request(&state, &headers, Some(api_key)).await?;
+    if !user.can_use_relay {
+        return Err(AppError::Unauthorized(
+            "Relay endpoint is disabled for this user".into(),
+        ));
+    }
 
     let target_url = params
         .url
@@ -85,10 +88,15 @@ pub async fn relay_request(
                     let port = mgr
                         .create_binding(&proxy.id, &proxy.singbox_outbound)
                         .await
-                        .map_err(|e| AppError::Internal(format!("Failed to create binding: {e}")))?;
+                        .map_err(|e| {
+                            AppError::Internal(format!("Failed to create binding: {e}"))
+                        })?;
                     drop(mgr);
                     state.pool.set_local_port(&proxy.id, port);
-                    state.db.update_proxy_local_port(&proxy.id, port as i32).ok();
+                    state
+                        .db
+                        .update_proxy_local_port(&proxy.id, port as i32)
+                        .ok();
                     port
                 }
             };
@@ -129,7 +137,11 @@ pub async fn relay_request(
                 return Ok(build_streaming_response(resp, proxy, Some(attempt + 1)));
             }
             Err(e) => {
-                tracing::debug!("Relay attempt {} failed with proxy {}: {e}", attempt + 1, proxy.name);
+                tracing::debug!(
+                    "Relay attempt {} failed with proxy {}: {e}",
+                    attempt + 1,
+                    proxy.name
+                );
                 // Mark proxy as having a failure so periodic validation will re-check it
                 state.pool.increment_error(&proxy.id);
                 state.db.increment_proxy_error_count(&proxy.id).ok();
@@ -191,16 +203,19 @@ const SKIP_RESPONSE_HEADERS: &[&str] = &[
 ];
 
 /// Build a streaming axum Response from a reqwest::Response, attaching X-Proxy-* headers.
-fn build_streaming_response(resp: reqwest::Response, proxy: &PoolProxy, attempt: Option<u32>) -> Response {
+fn build_streaming_response(
+    resp: reqwest::Response,
+    proxy: &PoolProxy,
+    attempt: Option<u32>,
+) -> Response {
     let status = resp.status();
 
     // Collect response headers before consuming the body
     let resp_headers = resp.headers().clone();
 
-    let encoded_name = percent_encoding::utf8_percent_encode(
-        &proxy.name,
-        percent_encoding::NON_ALPHANUMERIC,
-    ).to_string();
+    let encoded_name =
+        percent_encoding::utf8_percent_encode(&proxy.name, percent_encoding::NON_ALPHANUMERIC)
+            .to_string();
 
     // Stream the response body without buffering
     let body = axum::body::Body::from_stream(resp.bytes_stream());
@@ -221,13 +236,20 @@ fn build_streaming_response(resp: reqwest::Response, proxy: &PoolProxy, attempt:
     // Add proxy metadata headers
     h.insert("X-Proxy-Id", proxy.id.parse().unwrap());
     h.insert("X-Proxy-Name", encoded_name.parse().unwrap());
-    h.insert("X-Proxy-Server", format!("{}:{}", proxy.server, proxy.port).parse().unwrap());
+    h.insert(
+        "X-Proxy-Server",
+        format!("{}:{}", proxy.server, proxy.port).parse().unwrap(),
+    );
     if let Some(q) = &proxy.quality {
         if let Some(ref ip) = q.ip_address {
-            if let Ok(v) = ip.parse() { h.insert("X-Proxy-IP", v); }
+            if let Ok(v) = ip.parse() {
+                h.insert("X-Proxy-IP", v);
+            }
         }
         if let Some(ref country) = q.country {
-            if let Ok(v) = country.parse() { h.insert("X-Proxy-Country", v); }
+            if let Ok(v) = country.parse() {
+                h.insert("X-Proxy-Country", v);
+            }
         }
     }
     if let Some(a) = attempt {

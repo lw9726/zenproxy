@@ -100,7 +100,11 @@ pub async fn check_all(state: Arc<AppState>) -> Result<usize, String> {
 
     if did_reassign {
         let _lock = state.validation_lock.lock().await;
-        crate::api::subscription::sync_proxy_bindings(&state, crate::api::subscription::SyncMode::Normal).await;
+        crate::api::subscription::sync_proxy_bindings(
+            &state,
+            crate::api::subscription::SyncMode::Normal,
+        )
+        .await;
     }
 
     if total_checked > 0 {
@@ -228,7 +232,10 @@ fn needs_quality_check(proxy: &PoolProxy, now: &chrono::DateTime<chrono::Utc>) -
 }
 
 fn quality_is_incomplete(q: &ProxyQualityInfo) -> bool {
-    q.country.is_none() || q.ip_type.is_none() || q.ip_address.is_none() || q.risk_level == "Unknown"
+    q.country.is_none()
+        || q.ip_type.is_none()
+        || q.ip_address.is_none()
+        || q.risk_level == "Unknown"
 }
 
 /// IP info from ip-api.com (primary source — free, no key, auto-detects caller IP)
@@ -330,13 +337,20 @@ async fn query_ip_api(client: &reqwest::Client) -> Option<IpApiResult> {
         }
         let resp = match client.get(url).send().await {
             Ok(r) if r.status().as_u16() == 429 => {
-                tracing::warn!("ip-api.com rate limited (attempt {}), backing off", attempt + 1);
+                tracing::warn!(
+                    "ip-api.com rate limited (attempt {}), backing off",
+                    attempt + 1
+                );
                 tokio::time::sleep(std::time::Duration::from_secs(30)).await;
                 continue;
             }
             Ok(r) if r.status().is_success() => r,
             Ok(r) => {
-                tracing::warn!("ip-api.com returned status {} (attempt {})", r.status(), attempt + 1);
+                tracing::warn!(
+                    "ip-api.com returned status {} (attempt {})",
+                    r.status(),
+                    attempt + 1
+                );
                 continue;
             }
             Err(e) => {
@@ -380,7 +394,11 @@ async fn query_ipinfo(
         let resp = match client.get("https://ipinfo.io/json").send().await {
             Ok(r) if r.status().is_success() => r,
             Ok(r) => {
-                tracing::warn!("ipinfo.io returned status {} (attempt {})", r.status(), attempt + 1);
+                tracing::warn!(
+                    "ipinfo.io returned status {} (attempt {})",
+                    r.status(),
+                    attempt + 1
+                );
                 continue;
             }
             Err(e) => {

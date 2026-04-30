@@ -64,6 +64,9 @@ tr:hover td { background:rgba(108,99,255,.03); }
 .empty { text-align:center; color:var(--text-dim); padding:40px; }
 .type-chips { display:flex; gap:8px; flex-wrap:wrap; }
 .type-chip { padding:4px 10px; border-radius:6px; font-size:12px; background:rgba(108,99,255,.1); color:var(--primary); }
+.checkbox-group { display:flex; gap:16px; flex-wrap:wrap; }
+.checkbox-group label { display:flex; align-items:center; gap:7px; font-size:13px; color:var(--text-dim); cursor:pointer; }
+.checkbox-group input { accent-color:var(--primary); }
 /* Login overlay */
 .login-overlay { position:fixed; inset:0; background:var(--bg); display:flex; align-items:center; justify-content:center; z-index:1000; }
 .login-box { background:var(--card); border:1px solid var(--border); border-radius:16px; padding:40px; width:360px; text-align:center; }
@@ -80,6 +83,60 @@ tr:hover td { background:rgba(108,99,255,.03); }
 .pagination button.active { background:var(--primary); border-color:var(--primary); color:#fff; }
 .pagination button:disabled { opacity:.4; cursor:default; }
 .pagination .page-info { font-size:13px; color:var(--text-dim); margin:0 8px; }
+/* Premium adaptive theme */
+:root {
+  color-scheme: dark;
+  --bg:#080b12; --surface:#0d1220; --card:#111827; --card-2:#151d2e; --border:#243044;
+  --primary:#5b7cfa; --primary-hover:#4667dc; --primary-soft:rgba(91,124,250,.14);
+  --text:#dbe4f0; --text-dim:#8ea0b8; --text-bright:#f7fafc; --code-bg:#070a10;
+  --shadow:0 24px 70px rgba(0,0,0,.38); --ring:0 0 0 4px rgba(91,124,250,.16);
+}
+html[data-theme="light"] {
+  color-scheme: light;
+  --bg:#f5f7fb; --surface:#ffffff; --card:#ffffff; --card-2:#f9fbff; --border:#dce3ee;
+  --primary:#315cf6; --primary-hover:#244bd2; --primary-soft:rgba(49,92,246,.10);
+  --success:#07875a; --danger:#c9343a; --warn:#a66a00;
+  --text:#243044; --text-dim:#64748b; --text-bright:#0f172a; --code-bg:#eef3fb;
+  --shadow:0 22px 60px rgba(15,23,42,.10); --ring:0 0 0 4px rgba(49,92,246,.14);
+}
+body { background:radial-gradient(circle at top left, rgba(91,124,250,.22), transparent 34rem), linear-gradient(180deg, var(--bg), color-mix(in srgb, var(--bg), #000 7%)); line-height:1.5; }
+.header { position:sticky; top:0; z-index:50; padding:14px 28px; background:color-mix(in srgb, var(--card), transparent 12%); backdrop-filter:blur(18px); box-shadow:0 1px 0 var(--border); }
+.header h1 { letter-spacing:0; font-size:18px; display:flex; align-items:center; gap:10px; }
+.header h1::before { content:""; width:30px; height:30px; border-radius:8px; background:linear-gradient(135deg, var(--primary), #16b8a6); box-shadow:0 10px 30px rgba(91,124,250,.28); }
+.header .nav { display:flex; align-items:center; gap:6px; flex-wrap:wrap; justify-content:flex-end; }
+.header .nav a, .theme-toggle { min-height:36px; margin-left:0; border-radius:8px; color:var(--text-dim); background:transparent; border:1px solid transparent; text-decoration:none; }
+.header .nav a:hover, .header .nav a.active, .theme-toggle:hover { color:var(--text-bright); background:var(--primary-soft); border-color:color-mix(in srgb, var(--primary), transparent 72%); }
+.theme-toggle { padding:6px 11px; font:inherit; cursor:pointer; }
+.container { max-width:1480px; padding:28px; }
+.section { margin-bottom:28px; }
+.section-title { font-size:15px; letter-spacing:0; }
+.card, .stat-card, .login-box { background:linear-gradient(180deg, color-mix(in srgb, var(--card), #fff 2%), var(--card)); border-color:var(--border); box-shadow:var(--shadow); border-radius:8px; }
+.card { padding:18px; }
+.stat-grid { grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:14px; }
+.stat-card { text-align:left; padding:18px; position:relative; overflow:hidden; }
+.stat-card::after { content:""; position:absolute; inset:auto 14px 14px auto; width:34px; height:3px; border-radius:999px; background:var(--primary); opacity:.75; }
+.stat-value { font-size:30px; letter-spacing:0; }
+.stat-label { text-transform:uppercase; letter-spacing:.06em; }
+.btn { border-radius:8px; min-height:38px; box-shadow:none; }
+.btn-primary { background:linear-gradient(135deg, var(--primary), #16a3b8); }
+.btn-primary:hover { transform:translateY(-1px); box-shadow:0 12px 28px rgba(49,92,246,.24); }
+.form-group input, .form-group select, .form-group textarea, .filter-bar input, .filter-bar select, .login-box input { background:var(--surface); border-color:var(--border); color:var(--text); border-radius:8px; }
+.form-group input:focus, .form-group select:focus, .form-group textarea:focus, .filter-bar input:focus, .filter-bar select:focus, .login-box input:focus { border-color:var(--primary); box-shadow:var(--ring); }
+table { border-collapse:separate; border-spacing:0; }
+th { background:color-mix(in srgb, var(--card-2), transparent 12%); letter-spacing:.06em; }
+th:first-child { border-top-left-radius:8px; }
+th:last-child { border-top-right-radius:8px; }
+td, th { border-bottom:1px solid var(--border); }
+tr:hover td { background:var(--primary-soft); }
+.badge, .type-chip { border-radius:6px; }
+.login-overlay { background:radial-gradient(circle at 50% 0%, rgba(91,124,250,.22), transparent 34rem), var(--bg); }
+.login-box { width:min(420px, calc(100vw - 32px)); padding:38px; }
+.login-box h2 { font-size:28px; }
+@media (max-width:760px) {
+  .header { align-items:flex-start; gap:12px; flex-direction:column; padding:14px 18px; }
+  .header .nav { justify-content:flex-start; }
+  .container { padding:18px; }
+}
 </style>
 </head>
 <body>
@@ -103,6 +160,7 @@ tr:hover td { background:rgba(108,99,255,.03); }
     <a href="/">仪表盘</a>
     <a href="/admin" class="active">管理后台</a>
     <a href="/docs">API 文档</a>
+    <button class="theme-toggle" type="button" onclick="toggleTheme()" aria-label="切换明暗主题" id="theme-toggle">Theme</button>
     <a href="javascript:void(0)" onclick="doLogout()" style="color:var(--danger)">退出登录</a>
   </div>
 </div>
@@ -139,12 +197,56 @@ tr:hover td { background:rgba(108,99,255,.03); }
     </div>
   </div>
 
+  <!-- Auth Settings -->
+  <div class="section">
+    <div class="section-title">认证系统</div>
+    <div class="card">
+      <div class="checkbox-group" style="margin-bottom:16px">
+        <label><input type="checkbox" id="auth-account-login"> 允许账号登录</label>
+        <label><input type="checkbox" id="auth-linux-login"> 允许 Linux.do 登录</label>
+        <label><input type="checkbox" id="auth-registration"> 允许用户自行注册</label>
+      </div>
+      <div class="btn-group">
+        <button class="btn btn-primary" onclick="saveAuthSettings()">保存认证策略</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Create Account -->
+  <div class="section">
+    <div class="section-title">添加账号</div>
+    <div class="card">
+      <div class="grid-2">
+        <div class="form-group">
+          <label>用户名</label>
+          <input id="new-user-username" placeholder="user_name">
+        </div>
+        <div class="form-group">
+          <label>显示名称</label>
+          <input id="new-user-name" placeholder="可选">
+        </div>
+        <div class="form-group">
+          <label>初始密码</label>
+          <input id="new-user-password" type="password" placeholder="至少 8 位">
+        </div>
+        <div class="form-group">
+          <label>权限</label>
+          <label style="display:flex;align-items:center;gap:8px;margin-top:10px;color:var(--text-dim)">
+            <input type="checkbox" id="new-user-relay" style="width:auto;accent-color:var(--primary)">
+            允许使用中转端点
+          </label>
+        </div>
+      </div>
+      <button class="btn btn-primary" onclick="createAccountUser()">创建账号</button>
+    </div>
+  </div>
+
   <!-- User Management -->
   <div class="section">
     <div class="section-title">用户管理 <span id="user-count" style="font-weight:400;font-size:13px;color:var(--text-dim)"></span></div>
     <div class="card">
       <table>
-        <thead><tr><th>ID</th><th>用户名</th><th>昵称</th><th>信任等级</th><th>状态</th><th>API Key</th><th>注册时间</th><th>操作</th></tr></thead>
+        <thead><tr><th>ID</th><th>用户名</th><th>昵称</th><th>信任等级</th><th>状态</th><th>中转</th><th>API Key</th><th>注册时间</th><th>操作</th></tr></thead>
         <tbody id="user-table"></tbody>
       </table>
       <div class="empty" id="user-empty">暂无注册用户</div>
@@ -208,14 +310,14 @@ tr:hover td { background:rgba(108,99,255,.03); }
       <span>全部代理 <span id="proxy-count"></span></span>
     </div>
     <div class="filter-bar">
-      <input id="f-search" placeholder="搜索名称/服务器..." oninput="currentPage=1;renderProxies()">
-      <select id="f-status" onchange="currentPage=1;renderProxies()">
+      <input id="f-search" placeholder="搜索名称/服务器..." oninput="applyProxyFilters()">
+      <select id="f-status" onchange="applyProxyFilters()">
         <option value="">全部状态</option>
         <option value="valid">有效</option>
         <option value="invalid">无效</option>
         <option value="untested">待检测</option>
       </select>
-      <select id="f-type" onchange="currentPage=1;renderProxies()">
+      <select id="f-type" onchange="applyProxyFilters()">
         <option value="">全部类型</option>
         <option value="vmess">VMess</option>
         <option value="vless">VLESS</option>
@@ -223,7 +325,7 @@ tr:hover td { background:rgba(108,99,255,.03); }
         <option value="shadowsocks">Shadowsocks</option>
         <option value="hysteria2">Hysteria2</option>
       </select>
-      <select id="f-quality" onchange="currentPage=1;renderProxies()">
+      <select id="f-quality" onchange="applyProxyFilters()">
         <option value="">全部质量</option>
         <option value="chatgpt">ChatGPT 可用</option>
         <option value="google">Google 可用</option>
@@ -258,11 +360,27 @@ tr:hover td { background:rgba(108,99,255,.03); }
 </div>
 
 <script>
+const THEME_KEY = 'zenproxy_theme';
+function applyTheme(theme) {
+  const resolved = theme || (window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+  document.documentElement.dataset.theme = resolved;
+  const btn = document.getElementById('theme-toggle');
+  if (btn) btn.textContent = resolved === 'light' ? '深色' : '浅色';
+}
+function toggleTheme() {
+  const next = document.documentElement.dataset.theme === 'light' ? 'dark' : 'light';
+  localStorage.setItem(THEME_KEY, next);
+  applyTheme(next);
+}
+applyTheme(localStorage.getItem(THEME_KEY));
+
 let allProxies = [];
+let proxyTotal = 0;
 let sortField = 'name';
 let sortDir = 'asc';
 let currentPage = 1;
 const pageSize = 50;
+let filterTimer = null;
 
 // --- Auth ---
 const STORAGE_KEY = 'zenproxy_admin_password';
@@ -347,9 +465,56 @@ async function loadStats() {
   document.getElementById('s-untested').textContent = d.untested_proxies??0;
   document.getElementById('s-subs').textContent = d.subscriptions??0;
   document.getElementById('s-quality').textContent = d.quality_checked??0;
+  document.getElementById('s-chatgpt').textContent = d.chatgpt_accessible??0;
+  document.getElementById('s-google').textContent = d.google_accessible??0;
+  document.getElementById('s-residential').textContent = d.residential??0;
   const tc = document.getElementById('type-chips');
   if(d.by_type) {
     tc.innerHTML = Object.entries(d.by_type).map(([k,v])=>`<span class="type-chip">${esc(k)}: ${v}</span>`).join('');
+  }
+}
+
+async function loadAuthSettings() {
+  const d = await api('/api/admin/auth-settings');
+  if(!d) return;
+  document.getElementById('auth-account-login').checked = !!d.allow_account_login;
+  document.getElementById('auth-linux-login').checked = !!d.allow_linux_do_login;
+  document.getElementById('auth-registration').checked = !!d.allow_registration;
+}
+
+async function saveAuthSettings() {
+  const body = {
+    allow_account_login: document.getElementById('auth-account-login').checked,
+    allow_linux_do_login: document.getElementById('auth-linux-login').checked,
+    allow_registration: document.getElementById('auth-registration').checked
+  };
+  const d = await api('/api/admin/auth-settings', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  });
+  if(d) toast('认证策略已保存');
+}
+
+async function createAccountUser() {
+  const username = document.getElementById('new-user-username').value.trim();
+  const name = document.getElementById('new-user-name').value.trim();
+  const password = document.getElementById('new-user-password').value;
+  const can_use_relay = document.getElementById('new-user-relay').checked;
+  if(!username) return toast('请输入用户名');
+  if(!password || password.length < 8) return toast('密码至少 8 位');
+  const d = await api('/api/admin/users', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username, name, password, can_use_relay })
+  });
+  if(d && !d.error) {
+    document.getElementById('new-user-username').value = '';
+    document.getElementById('new-user-name').value = '';
+    document.getElementById('new-user-password').value = '';
+    document.getElementById('new-user-relay').checked = false;
+    toast('账号已创建');
+    loadUsers();
   }
 }
 
@@ -380,15 +545,23 @@ async function loadUsers() {
     const actions = u.is_banned
       ? `<button class="btn btn-success btn-sm" onclick="unbanUser('${esc(u.id)}')">解封</button>`
       : `<button class="btn btn-warn btn-sm" onclick="banUser('${esc(u.id)}')">封禁</button>`;
+    const relayBadge = u.can_use_relay
+      ? '<span class="badge badge-active">允许</span>'
+      : '<span class="badge badge-banned">禁止</span>';
+    const relayAction = u.can_use_relay
+      ? `<button class="btn btn-outline btn-sm" onclick="setRelayPermission('${esc(u.id)}', false)">禁用中转</button>`
+      : `<button class="btn btn-success btn-sm" onclick="setRelayPermission('${esc(u.id)}', true)">允许中转</button>`;
     return `<tr>
       <td>${esc(u.id)}</td>
       <td>${esc(u.username)}</td>
       <td>${esc(u.name||'-')}</td>
       <td>${u.trust_level}</td>
       <td>${statusBadge}</td>
+      <td>${relayBadge}</td>
       <td class="api-key-cell" title="${esc(u.api_key)}">${esc(u.api_key)}</td>
       <td>${new Date(u.created_at).toLocaleString()}</td>
       <td class="btn-group">
+        ${relayAction}
         ${actions}
         <button class="btn btn-danger btn-sm" onclick="deleteUser('${esc(u.id)}')">删除</button>
       </td>
@@ -413,6 +586,16 @@ async function banUser(id) {
 async function unbanUser(id) {
   await api('/api/admin/users/'+id+'/unban', {method:'POST'});
   toast('用户已解封');
+  loadUsers();
+}
+
+async function setRelayPermission(id, allowed) {
+  const d = await api('/api/admin/users/'+id+'/relay', {
+    method:'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ allowed })
+  });
+  if(d) toast(allowed ? '已允许用户使用中转' : '已禁止用户使用中转');
   loadUsers();
 }
 
@@ -465,58 +648,38 @@ async function adminAddSubscription() {
 }
 
 async function loadProxies() {
-  const d = await api('/api/admin/proxies');
+  const params = new URLSearchParams({
+    page: String(currentPage),
+    per_page: String(pageSize),
+    sort: sortField,
+    dir: sortDir
+  });
+  const search = document.getElementById('f-search').value.trim();
+  const status = document.getElementById('f-status').value;
+  const type_ = document.getElementById('f-type').value;
+  const quality = document.getElementById('f-quality').value;
+  if(search) params.set('search', search);
+  if(status) params.set('status', status);
+  if(type_) params.set('type', type_);
+  if(quality) params.set('quality', quality);
+  const d = await api('/api/admin/proxies?' + params.toString());
   if(!d) return;
   allProxies = d.proxies||[];
-  updateQualityStats();
+  proxyTotal = d.total || 0;
   renderProxies();
 }
 
 function renderProxies() {
-  const search = document.getElementById('f-search').value.toLowerCase();
-  const status = document.getElementById('f-status').value;
-  const type_ = document.getElementById('f-type').value;
-  const quality = document.getElementById('f-quality').value;
-
-  let filtered = allProxies.filter(p => {
-    if(search && !p.name.toLowerCase().includes(search) && !p.server.toLowerCase().includes(search)) return false;
-    if(status && p.status!==status) return false;
-    if(type_ && p.type!==type_) return false;
-    if(quality==='chatgpt' && (!p.quality||!p.quality.chatgpt)) return false;
-    if(quality==='google' && (!p.quality||!p.quality.google)) return false;
-    if(quality==='residential' && (!p.quality||!p.quality.is_residential)) return false;
-    return true;
-  });
-
-  filtered.sort((a,b) => {
-    let va, vb;
-    switch(sortField) {
-      case 'name': va=a.name; vb=b.name; break;
-      case 'type': va=a.type; vb=b.type; break;
-      case 'server': va=a.server; vb=b.server; break;
-      case 'is_valid': va=a.status==='valid'?0:a.status==='untested'?1:2; vb=b.status==='valid'?0:b.status==='untested'?1:2; break;
-      case 'error_count': va=a.error_count; vb=b.error_count; break;
-      case 'country': va=a.quality&&a.quality.country?a.quality.country:'zzz'; vb=b.quality&&b.quality.country?b.quality.country:'zzz'; break;
-      case 'risk': va=a.quality?a.quality.risk_score:2; vb=b.quality?b.quality.risk_score:2; break;
-      default: va=a.name; vb=b.name;
-    }
-    if(va<vb) return sortDir==='asc'?-1:1;
-    if(va>vb) return sortDir==='asc'?1:-1;
-    return 0;
-  });
-
-  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const totalPages = Math.max(1, Math.ceil(proxyTotal / pageSize));
   if(currentPage > totalPages) currentPage = totalPages;
-  const start = (currentPage - 1) * pageSize;
-  const end = start + pageSize;
 
-  document.getElementById('proxy-count').textContent = `(${filtered.length})`;
+  document.getElementById('proxy-count').textContent = `(${proxyTotal})`;
   const tb = document.getElementById('proxy-table');
   const empty = document.getElementById('proxy-empty');
-  if(!filtered.length) { tb.innerHTML=''; empty.style.display=''; renderPagination(0, 0); return; }
+  if(!allProxies.length) { tb.innerHTML=''; empty.style.display=''; renderPagination(0, 0); return; }
   empty.style.display='none';
 
-  tb.innerHTML = filtered.slice(start, end).map(p => {
+  tb.innerHTML = allProxies.map(p => {
     const q = p.quality;
     const yes = '<span class="badge badge-valid">Yes</span>';
     const no = '<span class="badge badge-invalid">No</span>';
@@ -544,7 +707,7 @@ function renderProxies() {
     </tr>`;
   }).join('');
 
-  renderPagination(filtered.length, totalPages);
+  renderPagination(proxyTotal, totalPages);
 }
 
 function renderPagination(total, totalPages) {
@@ -568,12 +731,19 @@ function renderPagination(total, totalPages) {
   container.innerHTML = html;
 }
 
-function goPage(page) { currentPage = page; renderProxies(); }
+function goPage(page) { currentPage = page; loadProxies(); }
 
 function sortBy(field) {
   if(sortField===field) sortDir = sortDir==='asc'?'desc':'asc';
   else { sortField=field; sortDir='asc'; }
-  renderProxies();
+  currentPage = 1;
+  loadProxies();
+}
+
+function applyProxyFilters() {
+  currentPage = 1;
+  clearTimeout(filterTimer);
+  filterTimer = setTimeout(loadProxies, 200);
 }
 
 async function deleteProxy(id) {
@@ -631,7 +801,7 @@ async function cleanupUselessProxies() {
   refresh();
 }
 
-function refresh() { loadStats(); loadUsers(); loadSubscriptions(); loadProxies(); }
+function refresh() { loadStats(); loadAuthSettings(); loadUsers(); loadSubscriptions(); loadProxies(); }
 
 // Init: check auth
 checkAuth();

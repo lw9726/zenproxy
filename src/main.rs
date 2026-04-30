@@ -8,7 +8,7 @@ mod quality;
 mod singbox;
 
 use crate::config::AppConfig;
-use crate::db::{Database, User};
+use crate::db::{AuthSettings, Database, User};
 use crate::pool::manager::ProxyPool;
 use crate::singbox::process::SingboxManager;
 use dashmap::DashMap;
@@ -38,13 +38,23 @@ async fn main() {
         .init();
 
     let config = AppConfig::load().expect("Failed to load config");
-    tracing::info!("ZenProxy starting on {}:{}", config.server.host, config.server.port);
+    tracing::info!(
+        "ZenProxy starting on {}:{}",
+        config.server.host,
+        config.server.port
+    );
 
     // Ensure data directory exists
     std::fs::create_dir_all("data").ok();
 
     // Initialize database
     let db = Database::new(&config.database.path).expect("Failed to initialize database");
+    db.init_auth_settings_if_missing(&AuthSettings {
+        allow_account_login: config.auth.allow_account_login,
+        allow_linux_do_login: config.auth.allow_linux_do_login,
+        allow_registration: config.auth.allow_registration,
+    })
+    .expect("Failed to initialize auth settings");
 
     // Initialize proxy pool from database
     let pool = ProxyPool::new();
@@ -55,7 +65,8 @@ async fn main() {
     db.clear_all_proxy_local_ports().ok();
 
     // Initialize SingboxManager and start with minimal config
-    let mut manager = SingboxManager::new(config.singbox.clone(), config.validation.batch_size as u16);
+    let mut manager =
+        SingboxManager::new(config.singbox.clone(), config.validation.batch_size as u16);
     if let Err(e) = manager.start().await {
         tracing::warn!("Failed to start sing-box: {e}");
     }
@@ -121,7 +132,8 @@ async fn start_background_tasks(state: Arc<AppState>) {
     let state_clone = state.clone();
     // Periodic validation
     tokio::spawn(async move {
-        let interval = std::time::Duration::from_secs(state_clone.config.validation.interval_mins * 60);
+        let interval =
+            std::time::Duration::from_secs(state_clone.config.validation.interval_mins * 60);
         loop {
             tokio::time::sleep(interval).await;
             tracing::info!("Running periodic proxy validation...");
@@ -175,7 +187,9 @@ async fn start_background_tasks(state: Arc<AppState>) {
         loop {
             tokio::time::sleep(interval).await;
             let now = tokio::time::Instant::now();
-            state_clone.auth_cache.retain(|_, (_, expires)| now < *expires);
+            state_clone
+                .auth_cache
+                .retain(|_, (_, expires)| now < *expires);
         }
     });
 
@@ -236,9 +250,7 @@ async fn refresh_all_subscriptions(state: &Arc<AppState>) {
         }
     }
 
-    tracing::info!(
-        "Auto-refresh complete: {success} succeeded, {failed} failed"
-    );
+    tracing::info!("Auto-refresh complete: {success} succeeded, {failed} failed");
 
     // Run validation once after all subscriptions are refreshed
     if success > 0 {

@@ -23,6 +23,8 @@
       "external_ui_download_detour": "",
       "secret": "",
       "default_mode": "",
+      "zenproxy_port_start": 20001,
+      "zenproxy_port_end": 30000,
       "access_control_allow_origin": [],
       "access_control_allow_private_network": false,
       
@@ -100,6 +102,35 @@ RESTful API 的密钥（可选）
 Clash 中的默认模式，默认使用 `Rule`。
 
 此设置没有直接影响，但可以通过 `clash_mode` 规则项在路由和 DNS 规则中使用。
+
+#### zenproxy_port_start
+
+ZenProxy 动态本地代理绑定的起始端口。
+
+当 `/bindings` 或 `/bindings/batch` 从已存储代理创建绑定且没有显式传入 `listen_port` 时，会从 `zenproxy_port_start` 到 `zenproxy_port_end` 范围内自动分配端口。
+
+默认值为 `20001`。
+
+#### zenproxy_port_end
+
+ZenProxy 动态本地代理绑定的结束端口。
+
+默认值为 `30000`。
+
+示例：
+
+```json
+{
+  "experimental": {
+    "clash_api": {
+      "external_controller": "127.0.0.1:9090",
+      "secret": "your-secret",
+      "zenproxy_port_start": 60001,
+      "zenproxy_port_end": 65535
+    }
+  }
+}
+```
 
 #### access_control_allow_origin
 

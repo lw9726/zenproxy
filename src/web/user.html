@@ -84,6 +84,71 @@ tr:hover td { background:rgba(108,99,255,.03); }
 .pagination button.active { background:var(--primary); border-color:var(--primary); color:#fff; }
 .pagination button:disabled { opacity:.4; cursor:default; }
 .pagination .page-info { font-size:13px; color:var(--text-dim); margin:0 8px; }
+/* Premium adaptive theme */
+:root {
+  color-scheme: dark;
+  --bg:#080b12; --surface:#0d1220; --card:#111827; --card-2:#151d2e; --border:#243044;
+  --primary:#5b7cfa; --primary-hover:#4667dc; --primary-soft:rgba(91,124,250,.14);
+  --text:#dbe4f0; --text-dim:#8ea0b8; --text-bright:#f7fafc; --code-bg:#070a10;
+  --shadow:0 24px 70px rgba(0,0,0,.38); --ring:0 0 0 4px rgba(91,124,250,.16);
+}
+html[data-theme="light"] {
+  color-scheme: light;
+  --bg:#f5f7fb; --surface:#ffffff; --card:#ffffff; --card-2:#f9fbff; --border:#dce3ee;
+  --primary:#315cf6; --primary-hover:#244bd2; --primary-soft:rgba(49,92,246,.10);
+  --success:#07875a; --danger:#c9343a; --warn:#a66a00;
+  --text:#243044; --text-dim:#64748b; --text-bright:#0f172a; --code-bg:#eef3fb;
+  --shadow:0 22px 60px rgba(15,23,42,.10); --ring:0 0 0 4px rgba(49,92,246,.14);
+}
+body { background:radial-gradient(circle at top left, rgba(91,124,250,.22), transparent 34rem), linear-gradient(180deg, var(--bg), color-mix(in srgb, var(--bg), #000 7%)); line-height:1.5; }
+.header { position:sticky; top:0; z-index:50; padding:14px 28px; background:color-mix(in srgb, var(--card), transparent 12%); backdrop-filter:blur(18px); box-shadow:0 1px 0 var(--border); }
+.header h1 { letter-spacing:0; font-size:18px; display:flex; align-items:center; gap:10px; }
+.header h1::before { content:""; width:30px; height:30px; border-radius:8px; background:linear-gradient(135deg, var(--primary), #16b8a6); box-shadow:0 10px 30px rgba(91,124,250,.28); }
+.header .nav { gap:6px; flex-wrap:wrap; justify-content:flex-end; }
+.header .nav a, .theme-toggle { min-height:36px; border-radius:8px; color:var(--text-dim); background:transparent; border:1px solid transparent; text-decoration:none; }
+.header .nav a:hover, .header .nav a.active, .theme-toggle:hover { color:var(--text-bright); background:var(--primary-soft); border-color:color-mix(in srgb, var(--primary), transparent 72%); }
+.theme-toggle { padding:6px 11px; font:inherit; cursor:pointer; }
+.container { max-width:1480px; padding:28px; }
+.section { margin-bottom:28px; }
+.section-title { font-size:15px; letter-spacing:0; }
+.card, .stat-card, .apikey-card, .login-box { background:linear-gradient(180deg, color-mix(in srgb, var(--card), #fff 2%), var(--card)); border-color:var(--border); box-shadow:var(--shadow); border-radius:8px; }
+.card { padding:18px; }
+.stat-grid { grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:14px; }
+.stat-card { text-align:left; padding:18px; position:relative; overflow:hidden; }
+.stat-card::after { content:""; position:absolute; inset:auto 14px 14px auto; width:34px; height:3px; border-radius:999px; background:var(--primary); opacity:.75; }
+.stat-value { font-size:30px; letter-spacing:0; }
+.stat-label { text-transform:uppercase; letter-spacing:.06em; }
+.btn { border-radius:8px; min-height:38px; box-shadow:none; }
+.btn-primary { background:linear-gradient(135deg, var(--primary), #16a3b8); }
+.btn-primary:hover { transform:translateY(-1px); box-shadow:0 12px 28px rgba(49,92,246,.24); }
+.form-group input, .form-group select, .filter-bar input, .filter-bar select, .apikey-value input { background:var(--surface); border-color:var(--border); color:var(--text); border-radius:8px; }
+.form-group input:focus, .form-group select:focus, .filter-bar input:focus, .filter-bar select:focus, .apikey-value input:focus { border-color:var(--primary); box-shadow:var(--ring); }
+table { border-collapse:separate; border-spacing:0; }
+th { background:color-mix(in srgb, var(--card-2), transparent 12%); letter-spacing:.06em; }
+th:first-child { border-top-left-radius:8px; }
+th:last-child { border-top-right-radius:8px; }
+td, th { border-bottom:1px solid var(--border); }
+tr:hover td { background:var(--primary-soft); }
+.badge { border-radius:6px; }
+.result-box, .apikey-hint .example { background:var(--code-bg); }
+.login-overlay { background:radial-gradient(circle at 50% 0%, rgba(91,124,250,.22), transparent 34rem), var(--bg); }
+.login-box { width:min(420px, calc(100vw - 32px)); padding:38px; }
+.login-box h2 { font-size:28px; }
+.login-box input { width:100%; padding:12px 14px; margin-bottom:10px; background:var(--surface); border:1px solid var(--border); border-radius:8px; color:var(--text); outline:none; }
+.login-box input:focus { border-color:var(--primary); box-shadow:var(--ring); }
+.auth-divider { display:flex; align-items:center; gap:12px; color:var(--text-dim); font-size:12px; margin:16px 0; }
+.auth-divider::before, .auth-divider::after { content:""; flex:1; height:1px; background:var(--border); }
+.auth-error { display:none; color:var(--danger); font-size:13px; margin:0 0 12px; }
+.auth-switch { color:var(--primary); cursor:pointer; font-size:13px; margin-top:12px; display:inline-block; }
+.auth-switch:hover { text-decoration:underline; }
+@media (max-width:760px) {
+  .header { align-items:flex-start; gap:12px; flex-direction:column; padding:14px 18px; }
+  .header .nav { justify-content:flex-start; }
+  .container { padding:18px; }
+  .inline-group { flex-direction:column; align-items:stretch; }
+  .apikey-value { flex-direction:column; align-items:stretch; }
+  .apikey-actions { flex-wrap:wrap; }
+}
 </style>
 </head>
 <body>
@@ -92,8 +157,22 @@ tr:hover td { background:rgba(108,99,255,.03); }
 <div class="login-overlay" id="login-overlay">
   <div class="login-box">
     <h2>ZenProxy</h2>
-    <p>使用 Linux DO 账号登录以继续</p>
-    <a class="btn btn-primary" href="/api/auth/login">使用 Linux DO 登录</a>
+    <p id="login-subtitle">登录后继续使用代理池</p>
+    <div class="auth-error" id="auth-error"></div>
+    <div id="account-login-box" style="display:none">
+      <input id="account-username" autocomplete="username" placeholder="用户名" onkeydown="if(event.key==='Enter')accountLogin()">
+      <input id="account-password" type="password" autocomplete="current-password" placeholder="密码" onkeydown="if(event.key==='Enter')accountLogin()">
+      <button class="btn btn-primary" onclick="accountLogin()">账号登录</button>
+    </div>
+    <div id="register-box" style="display:none">
+      <input id="register-username" autocomplete="username" placeholder="用户名">
+      <input id="register-name" placeholder="显示名称（可选）">
+      <input id="register-password" type="password" autocomplete="new-password" placeholder="密码，至少 8 位" onkeydown="if(event.key==='Enter')registerAccount()">
+      <button class="btn btn-primary" onclick="registerAccount()">注册并登录</button>
+    </div>
+    <a class="auth-switch" id="register-switch" style="display:none" onclick="toggleRegisterMode()">没有账号？注册</a>
+    <div class="auth-divider" id="linux-divider" style="display:none">或</div>
+    <a class="btn btn-primary" id="linux-login-btn" href="/api/auth/login" style="display:none">使用 Linux.do 登录</a>
   </div>
 </div>
 
@@ -105,6 +184,7 @@ tr:hover td { background:rgba(108,99,255,.03); }
     <a href="/" class="active">仪表盘</a>
     <a href="/admin">管理后台</a>
     <a href="/docs">API 文档</a>
+    <button class="theme-toggle" type="button" onclick="toggleTheme()" aria-label="切换明暗主题" id="theme-toggle">Theme</button>
     <div class="user-info">
       <span class="username" id="header-username"></span>
       <a href="javascript:void(0)" onclick="doLogout()" style="color:var(--danger)">退出登录</a>
@@ -154,14 +234,14 @@ tr:hover td { background:rgba(108,99,255,.03); }
       <span>代理质量 <span id="proxy-count" style="font-weight:400;font-size:13px;color:var(--text-dim)"></span></span>
     </div>
     <div class="filter-bar">
-      <input id="f-search" placeholder="搜索名称/服务器/IP..." oninput="currentPage=1;renderProxies()">
-      <select id="f-status" onchange="currentPage=1;renderProxies()">
+      <input id="f-search" placeholder="搜索名称/服务器/IP..." oninput="applyProxyFilters()">
+      <select id="f-status" onchange="applyProxyFilters()">
         <option value="">全部状态</option>
         <option value="valid">有效</option>
         <option value="invalid">无效</option>
         <option value="untested">待检测</option>
       </select>
-      <select id="f-quality" onchange="currentPage=1;renderProxies()">
+      <select id="f-quality" onchange="applyProxyFilters()">
         <option value="">全部质量</option>
         <option value="chatgpt">ChatGPT 可用</option>
         <option value="google">Google 可用</option>
@@ -232,13 +312,31 @@ tr:hover td { background:rgba(108,99,255,.03); }
 </div>
 
 <script>
+const THEME_KEY = 'zenproxy_theme';
+function applyTheme(theme) {
+  const resolved = theme || (window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+  document.documentElement.dataset.theme = resolved;
+  const btn = document.getElementById('theme-toggle');
+  if (btn) btn.textContent = resolved === 'light' ? '深色' : '浅色';
+}
+function toggleTheme() {
+  const next = document.documentElement.dataset.theme === 'light' ? 'dark' : 'light';
+  localStorage.setItem(THEME_KEY, next);
+  applyTheme(next);
+}
+applyTheme(localStorage.getItem(THEME_KEY));
+
+let authSettings = { allow_account_login: true, allow_linux_do_login: true, allow_registration: false };
+let registerMode = false;
 let currentUser = null;
 let allProxies = [];
+let proxyTotal = 0;
 let sortField = 'name';
 let sortDir = 'asc';
 let keyVisible = false;
 let currentPage = 1;
 const pageSize = 50;
+let filterTimer = null;
 
 function toast(msg) {
   const t = document.createElement('div');
@@ -248,6 +346,70 @@ function toast(msg) {
 }
 
 function esc(s) { if (!s) return ''; const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+async function loadAuthSettings() {
+  try {
+    const r = await fetch('/api/auth/settings');
+    if (r.ok) authSettings = await r.json();
+  } catch (_) {}
+  renderLoginOptions();
+}
+
+function renderLoginOptions() {
+  const accountBox = document.getElementById('account-login-box');
+  const registerBox = document.getElementById('register-box');
+  const registerSwitch = document.getElementById('register-switch');
+  const linuxBtn = document.getElementById('linux-login-btn');
+  const linuxDivider = document.getElementById('linux-divider');
+  accountBox.style.display = authSettings.allow_account_login && !registerMode ? '' : 'none';
+  registerBox.style.display = authSettings.allow_account_login && authSettings.allow_registration && registerMode ? '' : 'none';
+  registerSwitch.style.display = authSettings.allow_account_login && authSettings.allow_registration ? '' : 'none';
+  registerSwitch.textContent = registerMode ? '已有账号？登录' : '没有账号？注册';
+  linuxBtn.style.display = authSettings.allow_linux_do_login ? '' : 'none';
+  linuxDivider.style.display = authSettings.allow_account_login && authSettings.allow_linux_do_login ? '' : 'none';
+  if (!authSettings.allow_account_login && !authSettings.allow_linux_do_login) {
+    showAuthError('当前没有启用任何登录方式，请联系管理员。');
+  }
+}
+
+function toggleRegisterMode() {
+  registerMode = !registerMode;
+  showAuthError('');
+  renderLoginOptions();
+}
+
+function showAuthError(msg) {
+  const box = document.getElementById('auth-error');
+  box.textContent = msg || '';
+  box.style.display = msg ? 'block' : 'none';
+}
+
+async function accountLogin() {
+  showAuthError('');
+  const username = document.getElementById('account-username').value.trim();
+  const password = document.getElementById('account-password').value;
+  const r = await fetch('/api/auth/account-login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username, password })
+  });
+  if (!r.ok) { showAuthError('用户名或密码错误，或账号登录已关闭。'); return; }
+  await checkAuth();
+}
+
+async function registerAccount() {
+  showAuthError('');
+  const username = document.getElementById('register-username').value.trim();
+  const name = document.getElementById('register-name').value.trim();
+  const password = document.getElementById('register-password').value;
+  const r = await fetch('/api/auth/register', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username, name, password })
+  });
+  if (!r.ok) { const text = await r.text(); showAuthError(text || '注册失败，请检查用户名和密码。'); return; }
+  await checkAuth();
+}
 
 function maskKey(key) {
   if (!key || key.length < 12) return key;
@@ -321,7 +483,20 @@ async function regenerateKey() {
 async function loadProxies() {
   if (!currentUser) return;
   try {
-    const r = await fetch('/api/proxies?api_key=' + encodeURIComponent(currentUser.api_key));
+    const params = new URLSearchParams({
+      api_key: currentUser.api_key,
+      page: String(currentPage),
+      per_page: String(pageSize),
+      sort: sortField,
+      dir: sortDir
+    });
+    const search = (document.getElementById('f-search').value || '').trim();
+    const status = document.getElementById('f-status').value;
+    const quality = document.getElementById('f-quality').value;
+    if (search) params.set('search', search);
+    if (status) params.set('status', status);
+    if (quality) params.set('quality', quality);
+    const r = await fetch('/api/proxies?' + params.toString());
     const d = await r.json();
     if (!d) return;
     document.getElementById('stat-total').textContent = d.total ?? 0;
@@ -333,56 +508,22 @@ async function loadProxies() {
     document.getElementById('stat-google').textContent = d.google_accessible ?? 0;
     document.getElementById('stat-residential').textContent = d.residential ?? 0;
     allProxies = d.proxies || [];
+    proxyTotal = d.filtered_total ?? d.total ?? 0;
     renderProxies();
   } catch(e) {}
 }
 
 function renderProxies() {
-  const search = (document.getElementById('f-search').value || '').toLowerCase();
-  const status = document.getElementById('f-status').value;
-  const quality = document.getElementById('f-quality').value;
-
-  let filtered = allProxies.filter(p => {
-    if (search) {
-      const ip = p.quality && p.quality.ip_address ? p.quality.ip_address.toLowerCase() : '';
-      if (!p.name.toLowerCase().includes(search) && !p.server.toLowerCase().includes(search) && !ip.includes(search)) return false;
-    }
-    if (status && p.status !== status) return false;
-    if (quality === 'chatgpt' && (!p.quality || !p.quality.chatgpt)) return false;
-    if (quality === 'google' && (!p.quality || !p.quality.google)) return false;
-    if (quality === 'residential' && (!p.quality || !p.quality.is_residential)) return false;
-    if (quality === 'unchecked' && p.quality) return false;
-    return true;
-  });
-
-  filtered.sort((a, b) => {
-    let va, vb;
-    switch (sortField) {
-      case 'name': va = a.name; vb = b.name; break;
-      case 'type': va = a.type; vb = b.type; break;
-      case 'server': va = a.server; vb = b.server; break;
-      case 'is_valid': va = a.status==='valid'?0:a.status==='untested'?1:2; vb = b.status==='valid'?0:b.status==='untested'?1:2; break;
-      case 'country': va = a.quality && a.quality.country ? a.quality.country : 'zzz'; vb = b.quality && b.quality.country ? b.quality.country : 'zzz'; break;
-      case 'risk': va = a.quality ? a.quality.risk_score : 2; vb = b.quality ? b.quality.risk_score : 2; break;
-      default: va = a.name; vb = b.name;
-    }
-    if (va < vb) return sortDir === 'asc' ? -1 : 1;
-    if (va > vb) return sortDir === 'asc' ? 1 : -1;
-    return 0;
-  });
-
-  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const totalPages = Math.max(1, Math.ceil(proxyTotal / pageSize));
   if (currentPage > totalPages) currentPage = totalPages;
-  const start = (currentPage - 1) * pageSize;
-  const end = start + pageSize;
 
-  document.getElementById('proxy-count').textContent = `(${filtered.length})`;
+  document.getElementById('proxy-count').textContent = `(${proxyTotal})`;
   const tb = document.getElementById('proxy-table');
   const empty = document.getElementById('proxy-empty');
-  if (!filtered.length) { tb.innerHTML = ''; empty.style.display = ''; renderPagination(0, 0); return; }
+  if (!allProxies.length) { tb.innerHTML = ''; empty.style.display = ''; renderPagination(0, 0); return; }
   empty.style.display = 'none';
 
-  tb.innerHTML = filtered.slice(start, end).map(p => {
+  tb.innerHTML = allProxies.map(p => {
     const q = p.quality;
     const yes = '<span class="badge badge-valid">Yes</span>';
     const no = '<span class="badge badge-invalid">No</span>';
@@ -407,7 +548,7 @@ function renderProxies() {
     </tr>`;
   }).join('');
 
-  renderPagination(filtered.length, totalPages);
+  renderPagination(proxyTotal, totalPages);
 }
 
 function renderPagination(total, totalPages) {
@@ -431,12 +572,19 @@ function renderPagination(total, totalPages) {
   container.innerHTML = html;
 }
 
-function goPage(page) { currentPage = page; renderProxies(); }
+function goPage(page) { currentPage = page; loadProxies(); }
 
 function sortBy(field) {
   if (sortField === field) sortDir = sortDir === 'asc' ? 'desc' : 'asc';
   else { sortField = field; sortDir = 'asc'; }
-  renderProxies();
+  currentPage = 1;
+  loadProxies();
+}
+
+function applyProxyFilters() {
+  currentPage = 1;
+  clearTimeout(filterTimer);
+  filterTimer = setTimeout(loadProxies, 200);
 }
 
 // --- Fetch / Relay ---
@@ -513,6 +661,7 @@ async function doRelay() {
 }
 
 function refresh() { loadProxies(); }
+loadAuthSettings();
 checkAuth();
 setInterval(() => { if (currentUser) refresh(); }, 15000);
 </script>

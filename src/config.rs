@@ -10,6 +10,8 @@ pub struct AppConfig {
     pub quality: QualityConfig,
     pub oauth: OAuthConfig,
     #[serde(default)]
+    pub auth: AuthConfig,
+    #[serde(default)]
     pub subscription: SubscriptionConfig,
 }
 
@@ -31,6 +33,30 @@ pub struct OAuthConfig {
     pub client_id: String,
     pub client_secret: String,
     pub redirect_uri: String,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct AuthConfig {
+    #[serde(default = "default_true")]
+    pub allow_account_login: bool,
+    #[serde(default = "default_true")]
+    pub allow_linux_do_login: bool,
+    #[serde(default)]
+    pub allow_registration: bool,
+}
+
+fn default_true() -> bool {
+    true
+}
+
+impl Default for AuthConfig {
+    fn default() -> Self {
+        Self {
+            allow_account_login: true,
+            allow_linux_do_login: true,
+            allow_registration: false,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Deserialize)]

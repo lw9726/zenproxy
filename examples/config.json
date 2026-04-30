@@ -3,7 +3,9 @@
   "experimental": {
     "clash_api": {
       "external_controller": "127.0.0.1:9090",
-      "secret": "your-secret"
+      "secret": "your-secret",
+      "zenproxy_port_start": 20001,
+      "zenproxy_port_end": 30000
     }
   },
   "outbounds": [

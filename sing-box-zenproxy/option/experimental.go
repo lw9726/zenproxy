@@ -26,6 +26,8 @@ type ClashAPIOptions struct {
 	Secret                           string                     `json:"secret,omitempty"`
 	DefaultMode                      string                     `json:"default_mode,omitempty"`
 	ModeList                         []string                   `json:"-"`
+	ZenProxyPortStart                uint16                     `json:"zenproxy_port_start,omitempty"`
+	ZenProxyPortEnd                  uint16                     `json:"zenproxy_port_end,omitempty"`
 	AccessControlAllowOrigin         badoption.Listable[string] `json:"access_control_allow_origin,omitempty"`
 	AccessControlAllowPrivateNetwork bool                       `json:"access_control_allow_private_network,omitempty"`
 

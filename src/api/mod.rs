@@ -6,6 +6,7 @@ pub mod relay;
 pub mod subscription;
 
 use crate::AppState;
+use axum::extract::DefaultBodyLimit;
 use axum::{
     extract::State,
     http::{Request, StatusCode},
@@ -14,14 +15,16 @@ use axum::{
     routing::{delete, get, post},
     Router,
 };
-use axum::extract::DefaultBodyLimit;
 use std::sync::Arc;
 use tower_http::cors::CorsLayer;
 
 pub fn router(state: Arc<AppState>) -> Router {
     // Auth routes — no auth required
     let auth_routes = Router::new()
+        .route("/api/auth/settings", get(auth::settings))
         .route("/api/auth/login", get(auth::login))
+        .route("/api/auth/account-login", post(auth::account_login))
+        .route("/api/auth/register", post(auth::register))
         .route("/api/auth/callback", get(auth::callback))
         .route("/api/auth/me", get(auth::me))
         .route("/api/auth/logout", post(auth::logout))
@@ -33,12 +36,26 @@ pub fn router(state: Arc<AppState>) -> Router {
         .route("/api/admin/proxies/:id", delete(admin::delete_proxy))
         .route("/api/admin/proxies/cleanup", post(admin::cleanup_proxies))
         .route("/api/admin/validate", post(admin::trigger_validation))
-        .route("/api/admin/quality-check", post(admin::trigger_quality_check))
+        .route(
+            "/api/admin/quality-check",
+            post(admin::trigger_quality_check),
+        )
         .route("/api/admin/stats", get(admin::get_stats))
-        .route("/api/admin/users", get(admin::list_users))
+        .route(
+            "/api/admin/auth-settings",
+            get(admin::get_auth_settings).post(admin::update_auth_settings),
+        )
+        .route(
+            "/api/admin/users",
+            get(admin::list_users).post(admin::create_user),
+        )
         .route("/api/admin/users/:id", delete(admin::delete_user))
         .route("/api/admin/users/:id/ban", post(admin::ban_user))
         .route("/api/admin/users/:id/unban", post(admin::unban_user))
+        .route(
+            "/api/admin/users/:id/relay",
+            post(admin::set_user_relay_permission),
+        )
         .route(
             "/api/subscriptions",
             get(subscription::list_subscriptions).post(subscription::add_subscription),
@@ -60,8 +77,7 @@ pub fn router(state: Arc<AppState>) -> Router {
         .route("/api/proxies", get(fetch::list_all_proxies))
         .route(
             "/api/relay",
-            get(relay::relay_request)
-                .post(relay::relay_request),
+            get(relay::relay_request).post(relay::relay_request),
         )
         .layer(DefaultBodyLimit::max(10 * 1024 * 1024)); // 10 MB
 
@@ -111,7 +127,7 @@ async fn admin_page() -> axum::response::Html<&'static str> {
 }
 
 async fn docs_page() -> axum::response::Html<String> {
-    use pulldown_cmark::{Parser, Options, html};
+    use pulldown_cmark::{html, Options, Parser};
     let readme = include_str!("../../README.md");
     let mut options = Options::empty();
     options.insert(Options::ENABLE_TABLES);

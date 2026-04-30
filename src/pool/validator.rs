@@ -64,7 +64,10 @@ pub async fn validate_all(state: Arc<AppState>) -> Result<(), String> {
             for p in &stuck {
                 tracing::warn!("Proxy {} failed to get binding, marking invalid", p.name);
                 state.pool.set_status(&p.id, ProxyStatus::Invalid);
-                state.db.update_proxy_validation(&p.id, false, Some("binding creation failed")).ok();
+                state
+                    .db
+                    .update_proxy_validation(&p.id, false, Some("binding creation failed"))
+                    .ok();
             }
             break;
         }
@@ -164,10 +167,7 @@ async fn validate_batch(
             match result {
                 Ok(()) => {
                     state.pool.set_status(&proxy_id, ProxyStatus::Valid);
-                    state
-                        .db
-                        .update_proxy_validation(&proxy_id, true, None)
-                        .ok();
+                    state.db.update_proxy_validation(&proxy_id, true, None).ok();
                 }
                 Err(e) => {
                     tracing::debug!("Proxy {proxy_name} failed validation: {e}");

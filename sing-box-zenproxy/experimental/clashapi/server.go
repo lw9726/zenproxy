@@ -93,7 +93,9 @@ func NewServer(ctx context.Context, logFactory log.ObservableFactory, options op
 	// Initialize ProxyStore and PortPool
 	dataDir := filepath.Join(filemanager.BasePath(ctx, ""), "data")
 	proxyStore := NewProxyStore(dataDir, logFactory.NewLogger("proxy-store"))
-	portPool := newPortPool(20001, 10000, logFactory.NewLogger("port-pool"))
+	portStart, portEnd := normalizeZenProxyPortRange(options.ZenProxyPortStart, options.ZenProxyPortEnd)
+	portPool := newPortPool(portStart, portEnd, logFactory.NewLogger("port-pool"))
+	s.logger.Info("zenproxy local proxy port range: ", portStart, "-", portEnd)
 	s.bindingManager = newBindingManager(s, logFactory, proxyStore, portPool)
 	defaultMode := "Rule"
 	if options.DefaultMode != "" {
@@ -151,6 +153,22 @@ func NewServer(ctx context.Context, logFactory log.ObservableFactory, options op
 		})
 	}
 	return s, nil
+}
+
+func normalizeZenProxyPortRange(start, end uint16) (uint16, uint16) {
+	if start == 0 && end == 0 {
+		return 20001, 30000
+	}
+	if start == 0 {
+		start = 20001
+	}
+	if end == 0 {
+		end = 30000
+	}
+	if start > end {
+		return 20001, 30000
+	}
+	return start, end
 }
 
 func (s *Server) Name() string {

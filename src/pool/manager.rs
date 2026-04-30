@@ -1,6 +1,6 @@
 use crate::db::{Database, ProxyQuality};
 use dashmap::DashMap;
-use rand::seq::SliceRandom;
+use rand::Rng;
 use serde::Serialize;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
@@ -97,7 +97,9 @@ impl ProxyPool {
             .collect();
 
         for row in rows {
-            let quality = quality_map.get(&row.id).map(|q| ProxyQualityInfo::from(q.clone()));
+            let quality = quality_map
+                .get(&row.id)
+                .map(|q| ProxyQualityInfo::from(q.clone()));
             let outbound: serde_json::Value =
                 serde_json::from_str(&row.config_json).unwrap_or_default();
             // Derive tri-state: never validated → Untested, validated ok → Valid, validated fail → Invalid
@@ -190,7 +192,10 @@ impl ProxyPool {
     }
 
     pub fn count_valid(&self) -> usize {
-        self.proxies.iter().filter(|p| p.status == ProxyStatus::Valid).count()
+        self.proxies
+            .iter()
+            .filter(|p| p.status == ProxyStatus::Valid)
+            .count()
     }
 
     pub fn remove_by_subscription(&self, sub_id: &str) {
@@ -219,69 +224,251 @@ impl ProxyPool {
     }
 
     pub fn filter_proxies(&self, filter: &ProxyFilter) -> Vec<PoolProxy> {
-        let candidates: Vec<PoolProxy> = self
-            .proxies
+        self.proxies
             .iter()
-            .filter(|p| p.status == ProxyStatus::Valid && p.local_port.is_some())
-            .filter(|p| {
-                if let Some(ref proxy_type) = filter.proxy_type {
-                    p.proxy_type == *proxy_type
-                } else {
-                    true
-                }
-            })
-            .filter(|p| {
-                if filter.chatgpt {
-                    p.quality.as_ref().map(|q| q.chatgpt_accessible).unwrap_or(false)
-                } else {
-                    true
-                }
-            })
-            .filter(|p| {
-                if filter.google {
-                    p.quality.as_ref().map(|q| q.google_accessible).unwrap_or(false)
-                } else {
-                    true
-                }
-            })
-            .filter(|p| {
-                if filter.residential {
-                    p.quality.as_ref().map(|q| q.is_residential).unwrap_or(false)
-                } else {
-                    true
-                }
-            })
-            .filter(|p| {
-                if let Some(max) = filter.risk_max {
-                    p.quality.as_ref().map(|q| q.risk_score <= max).unwrap_or(false)
-                } else {
-                    true
-                }
-            })
-            .filter(|p| {
-                if let Some(ref country) = filter.country {
-                    p.quality
-                        .as_ref()
-                        .and_then(|q| q.country.as_ref())
-                        .map(|c| c.eq_ignore_ascii_case(country))
-                        .unwrap_or(false)
-                } else {
-                    true
-                }
-            })
+            .filter(|p| proxy_matches_filter(p.value(), filter))
             .map(|p| p.value().clone())
-            .collect();
-
-        candidates
+            .collect()
     }
 
     pub fn pick_random(&self, filter: &ProxyFilter, count: usize) -> Vec<PoolProxy> {
-        let mut candidates = self.filter_proxies(filter);
+        if count == 0 {
+            return Vec::new();
+        }
+
         let mut rng = rand::thread_rng();
-        candidates.shuffle(&mut rng);
-        candidates.truncate(count);
-        candidates
+        let mut reservoir: Vec<PoolProxy> = Vec::with_capacity(count);
+        let mut seen = 0usize;
+
+        for entry in self.proxies.iter() {
+            let proxy = entry.value();
+            if !proxy_matches_filter(proxy, filter) {
+                continue;
+            }
+
+            seen += 1;
+            if reservoir.len() < count {
+                reservoir.push(proxy.clone());
+                continue;
+            }
+
+            let idx = rng.gen_range(0..seen);
+            if idx < count {
+                reservoir[idx] = proxy.clone();
+            }
+        }
+
+        reservoir
     }
+
+    pub fn list_proxies(&self, query: &ProxyListQuery) -> ProxyListResult {
+        let mut matched: Vec<PoolProxy> = self
+            .proxies
+            .iter()
+            .filter(|p| proxy_matches_list_query(p.value(), query))
+            .map(|p| p.value().clone())
+            .collect();
+
+        sort_proxies(&mut matched, query.sort.as_deref(), query.dir.as_deref());
+
+        let total = matched.len();
+        let page = query.page.unwrap_or(1).max(1);
+        let per_page = query.per_page.unwrap_or(50).clamp(1, 500);
+        let start = (page - 1).saturating_mul(per_page);
+        let proxies = if start >= total {
+            Vec::new()
+        } else {
+            matched.into_iter().skip(start).take(per_page).collect()
+        };
+
+        ProxyListResult {
+            proxies,
+            total,
+            page,
+            per_page,
+        }
+    }
+
+    pub fn stats(&self) -> ProxyPoolStats {
+        let mut stats = ProxyPoolStats::default();
+        for entry in self.proxies.iter() {
+            stats.total += 1;
+            let proxy = entry.value();
+            match proxy.status {
+                ProxyStatus::Valid => stats.valid += 1,
+                ProxyStatus::Untested => stats.untested += 1,
+                ProxyStatus::Invalid => stats.invalid += 1,
+            }
+            if let Some(q) = &proxy.quality {
+                stats.quality_checked += 1;
+                if q.chatgpt_accessible {
+                    stats.chatgpt_accessible += 1;
+                }
+                if q.google_accessible {
+                    stats.google_accessible += 1;
+                }
+                if q.is_residential {
+                    stats.residential += 1;
+                }
+            }
+        }
+        stats
+    }
+}
+
+fn proxy_matches_filter(proxy: &PoolProxy, filter: &ProxyFilter) -> bool {
+    if proxy.status != ProxyStatus::Valid || proxy.local_port.is_none() {
+        return false;
+    }
+    if let Some(ref proxy_type) = filter.proxy_type {
+        if proxy.proxy_type != *proxy_type {
+            return false;
+        }
+    }
+    if filter.chatgpt
+        && !proxy
+            .quality
+            .as_ref()
+            .map(|q| q.chatgpt_accessible)
+            .unwrap_or(false)
+    {
+        return false;
+    }
+    if filter.google
+        && !proxy
+            .quality
+            .as_ref()
+            .map(|q| q.google_accessible)
+            .unwrap_or(false)
+    {
+        return false;
+    }
+    if filter.residential
+        && !proxy
+            .quality
+            .as_ref()
+            .map(|q| q.is_residential)
+            .unwrap_or(false)
+    {
+        return false;
+    }
+    if let Some(max) = filter.risk_max {
+        if !proxy
+            .quality
+            .as_ref()
+            .map(|q| q.risk_score <= max)
+            .unwrap_or(false)
+        {
+            return false;
+        }
+    }
+    if let Some(ref country) = filter.country {
+        if !proxy
+            .quality
+            .as_ref()
+            .and_then(|q| q.country.as_ref())
+            .map(|c| c.eq_ignore_ascii_case(country))
+            .unwrap_or(false)
+        {
+            return false;
+        }
+    }
+    true
+}
+
+fn proxy_matches_list_query(proxy: &PoolProxy, query: &ProxyListQuery) -> bool {
+    if let Some(ref search) = query.search {
+        let search = search.trim().to_ascii_lowercase();
+        if !search.is_empty() {
+            let ip = proxy
+                .quality
+                .as_ref()
+                .and_then(|q| q.ip_address.as_ref())
+                .map(|s| s.as_str())
+                .unwrap_or("");
+            if !proxy.name.to_ascii_lowercase().contains(&search)
+                && !proxy.server.to_ascii_lowercase().contains(&search)
+                && !ip.to_ascii_lowercase().contains(&search)
+            {
+                return false;
+            }
+        }
+    }
+
+    if let Some(ref status) = query.status {
+        let status_matches = matches!(
+            (status.as_str(), proxy.status),
+            ("valid", ProxyStatus::Valid)
+                | ("untested", ProxyStatus::Untested)
+                | ("invalid", ProxyStatus::Invalid)
+        );
+        if !status_matches {
+            return false;
+        }
+    }
+
+    if let Some(ref proxy_type) = query.proxy_type {
+        if !proxy_type.is_empty() && proxy.proxy_type != *proxy_type {
+            return false;
+        }
+    }
+
+    match query.quality.as_deref() {
+        Some("chatgpt") => proxy
+            .quality
+            .as_ref()
+            .map(|q| q.chatgpt_accessible)
+            .unwrap_or(false),
+        Some("google") => proxy
+            .quality
+            .as_ref()
+            .map(|q| q.google_accessible)
+            .unwrap_or(false),
+        Some("residential") => proxy
+            .quality
+            .as_ref()
+            .map(|q| q.is_residential)
+            .unwrap_or(false),
+        Some("unchecked") => proxy.quality.is_none(),
+        _ => true,
+    }
+}
+
+fn sort_proxies(proxies: &mut [PoolProxy], sort: Option<&str>, dir: Option<&str>) {
+    let desc = dir == Some("desc");
+    proxies.sort_by(|a, b| {
+        let ord = match sort.unwrap_or("name") {
+            "type" => a.proxy_type.cmp(&b.proxy_type),
+            "server" => a.server.cmp(&b.server).then(a.port.cmp(&b.port)),
+            "is_valid" | "status" => a.status.sort_weight().cmp(&b.status.sort_weight()),
+            "error_count" => a.error_count.cmp(&b.error_count),
+            "country" => quality_string(a, |q| q.country.as_deref())
+                .cmp(&quality_string(b, |q| q.country.as_deref())),
+            "risk" => quality_risk(a).total_cmp(&quality_risk(b)),
+            _ => a.name.cmp(&b.name),
+        };
+        if desc {
+            ord.reverse()
+        } else {
+            ord
+        }
+    });
+}
+
+fn quality_string<F>(proxy: &PoolProxy, f: F) -> String
+where
+    F: FnOnce(&ProxyQualityInfo) -> Option<&str>,
+{
+    proxy
+        .quality
+        .as_ref()
+        .and_then(f)
+        .unwrap_or("zzz")
+        .to_string()
+}
+
+fn quality_risk(proxy: &PoolProxy) -> f64 {
+    proxy.quality.as_ref().map(|q| q.risk_score).unwrap_or(2.0)
 }
 
 #[derive(Debug, Default, serde::Deserialize)]
@@ -298,4 +485,36 @@ pub struct ProxyFilter {
     pub proxy_type: Option<String>,
     pub count: Option<usize>,
     pub proxy_id: Option<String>,
+}
+
+#[derive(Debug, Default, serde::Deserialize)]
+pub struct ProxyListQuery {
+    pub page: Option<usize>,
+    pub per_page: Option<usize>,
+    pub search: Option<String>,
+    pub status: Option<String>,
+    #[serde(rename = "type")]
+    pub proxy_type: Option<String>,
+    pub quality: Option<String>,
+    pub sort: Option<String>,
+    pub dir: Option<String>,
+}
+
+pub struct ProxyListResult {
+    pub proxies: Vec<PoolProxy>,
+    pub total: usize,
+    pub page: usize,
+    pub per_page: usize,
+}
+
+#[derive(Default)]
+pub struct ProxyPoolStats {
+    pub total: usize,
+    pub valid: usize,
+    pub untested: usize,
+    pub invalid: usize,
+    pub quality_checked: usize,
+    pub chatgpt_accessible: usize,
+    pub google_accessible: usize,
+    pub residential: usize,
 }

@@ -9,6 +9,11 @@ client_id = ""
 client_secret = ""
 redirect_uri = "https://proxy.zenapi.top/api/auth/callback"
 
+[auth]
+allow_account_login = true
+allow_linux_do_login = true
+allow_registration = false
+
 [singbox]
 binary_path = "/usr/local/bin/sing-box"
 config_path = "data/singbox-config.json"

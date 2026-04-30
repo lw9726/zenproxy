@@ -95,11 +95,11 @@ pub async fn add_subscription(
 
     state.db.insert_subscription(&subscription)?;
 
-    // Insert proxies
-    let mut added = 0;
+    let mut proxy_rows = Vec::with_capacity(parsed.len());
+    let mut pool_proxies = Vec::with_capacity(parsed.len());
     for pc in &parsed {
         let proxy_id = uuid::Uuid::new_v4().to_string();
-        let proxy_row = ProxyRow {
+        proxy_rows.push(ProxyRow {
             id: proxy_id.clone(),
             subscription_id: sub_id.clone(),
             name: pc.name.clone(),
@@ -114,10 +114,9 @@ pub async fn add_subscription(
             last_validated: None,
             created_at: now.clone(),
             updated_at: now.clone(),
-        };
-        state.db.insert_proxy(&proxy_row)?;
+        });
 
-        let pool_proxy = PoolProxy {
+        pool_proxies.push(PoolProxy {
             id: proxy_id,
             subscription_id: sub_id.clone(),
             name: pc.name.clone(),
@@ -129,9 +128,12 @@ pub async fn add_subscription(
             local_port: None,
             error_count: 0,
             quality: None,
-        };
+        });
+    }
+    state.db.insert_proxies(&proxy_rows)?;
+    let added = pool_proxies.len();
+    for pool_proxy in pool_proxies {
         state.pool.add(pool_proxy);
-        added += 1;
     }
 
     tracing::info!("Added subscription '{}' with {added} proxies", req.name);
@@ -177,7 +179,10 @@ pub async fn delete_subscription(
 /// 3. For proxies whose (server, port, proxy_type) match an existing one,
 ///    preserve their validation status, error_count, local_port and quality data.
 /// 4. Only then remove old proxies that no longer appear in the new list.
-pub async fn refresh_subscription_core(state: &Arc<AppState>, sub: &Subscription) -> Result<usize, String> {
+pub async fn refresh_subscription_core(
+    state: &Arc<AppState>,
+    sub: &Subscription,
+) -> Result<usize, String> {
     let content = if let Some(ref url) = sub.url {
         let client = reqwest::Client::builder()
             .timeout(std::time::Duration::from_secs(30))
@@ -228,11 +233,15 @@ pub async fn refresh_subscription_core(state: &Arc<AppState>, sub: &Subscription
 
             // Update the outbound config in DB (it may have changed)
             let new_config = serde_json::to_string(&pc.singbox_outbound).unwrap_or_default();
-            state.db.update_proxy_config(&old.id, &pc.name, &new_config)
+            state
+                .db
+                .update_proxy_config(&old.id, &pc.name, &new_config)
                 .map_err(|e| format!("Failed to update proxy config: {e}"))?;
 
             // Update pool entry's name and outbound (keep status, local_port, etc.)
-            state.pool.update_proxy_config(&old.id, &pc.name, pc.singbox_outbound.clone());
+            state
+                .pool
+                .update_proxy_config(&old.id, &pc.name, pc.singbox_outbound.clone());
 
             added += 1;
         } else {
@@ -254,7 +263,9 @@ pub async fn refresh_subscription_core(state: &Arc<AppState>, sub: &Subscription
                 created_at: now.clone(),
                 updated_at: now.clone(),
             };
-            state.db.insert_proxy(&proxy_row)
+            state
+                .db
+                .insert_proxy(&proxy_row)
                 .map_err(|e| format!("Failed to insert proxy: {e}"))?;
 
             let pool_proxy = PoolProxy {
@@ -290,8 +301,10 @@ pub async fn refresh_subscription_core(state: &Arc<AppState>, sub: &Subscription
     if !removed.is_empty() {
         tracing::info!(
             "Refresh '{}': kept {}, new {}, removed {}",
-            sub.name, kept_ids.len(),
-            added - kept_ids.len(), removed.len()
+            sub.name,
+            kept_ids.len(),
+            added - kept_ids.len(),
+            removed.len()
         );
     }
 
@@ -407,8 +420,11 @@ pub async fn sync_proxy_bindings(state: &Arc<AppState>, mode: SyncMode) {
             let test_count = untested.len().min(batch);
             selected.extend(untested.drain(..test_count));
             // Clear ports for everything not selected
-            for p in valid_with_port.iter().chain(valid_no_port.iter())
-                .chain(untested.iter()).chain(invalid.iter())
+            for p in valid_with_port
+                .iter()
+                .chain(valid_no_port.iter())
+                .chain(untested.iter())
+                .chain(invalid.iter())
             {
                 if p.local_port.is_some() {
                     state.pool.clear_local_port(&p.id);
@@ -426,8 +442,12 @@ pub async fn sync_proxy_bindings(state: &Arc<AppState>, mode: SyncMode) {
             // Extra ports for quality checks
             let check_count = needs_quality.len().min(batch);
             selected.extend(needs_quality.drain(..check_count));
-            for p in valid_with_port.iter().chain(valid_no_port.iter())
-                .chain(needs_quality.iter()).chain(untested.iter()).chain(invalid.iter())
+            for p in valid_with_port
+                .iter()
+                .chain(valid_no_port.iter())
+                .chain(needs_quality.iter())
+                .chain(untested.iter())
+                .chain(invalid.iter())
             {
                 if p.local_port.is_some() {
                     state.pool.clear_local_port(&p.id);
@@ -449,7 +469,10 @@ pub async fn sync_proxy_bindings(state: &Arc<AppState>, mode: SyncMode) {
     };
     tracing::info!(
         "Syncing bindings: {} selected (mode={}, max={}, batch={})",
-        selected.len(), mode_str, max, batch,
+        selected.len(),
+        mode_str,
+        max,
+        batch,
     );
 
     let mut mgr = state.singbox.lock().await;
@@ -481,7 +504,11 @@ fn needs_quality_check(proxy: &PoolProxy, now: &chrono::DateTime<chrono::Utc>) -
     match &proxy.quality {
         None => true,
         Some(q) => {
-            if q.country.is_none() || q.ip_type.is_none() || q.ip_address.is_none() || q.risk_level == "Unknown" {
+            if q.country.is_none()
+                || q.ip_type.is_none()
+                || q.ip_address.is_none()
+                || q.risk_level == "Unknown"
+            {
                 return true;
             }
             if let Some(ref checked_str) = q.checked_at {

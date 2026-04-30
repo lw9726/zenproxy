@@ -1,7 +1,7 @@
-pub mod v2ray;
-pub mod clash;
 pub mod base64;
+pub mod clash;
 pub mod plain;
+pub mod v2ray;
 
 use serde::{Deserialize, Serialize};
 
@@ -73,21 +73,30 @@ pub fn parse_subscription_auto(content: &str) -> Vec<ProxyConfig> {
     // Try clash first (cheapest check: YAML with `proxies:` key)
     let clash_result = clash::parse(content);
     if !clash_result.is_empty() {
-        tracing::info!("Auto-detect: parsed {} proxies as Clash YAML", clash_result.len());
+        tracing::info!(
+            "Auto-detect: parsed {} proxies as Clash YAML",
+            clash_result.len()
+        );
         return clash_result;
     }
 
     // Try base64 (base64 decode → v2ray URIs)
     let base64_result = base64::parse(content);
     if !base64_result.is_empty() {
-        tracing::info!("Auto-detect: parsed {} proxies as Base64", base64_result.len());
+        tracing::info!(
+            "Auto-detect: parsed {} proxies as Base64",
+            base64_result.len()
+        );
         return base64_result;
     }
 
     // Try v2ray (raw lines with protocol URIs)
     let v2ray_result = v2ray::parse(content);
     if !v2ray_result.is_empty() {
-        tracing::info!("Auto-detect: parsed {} proxies as V2Ray URIs", v2ray_result.len());
+        tracing::info!(
+            "Auto-detect: parsed {} proxies as V2Ray URIs",
+            v2ray_result.len()
+        );
         return v2ray_result;
     }
 

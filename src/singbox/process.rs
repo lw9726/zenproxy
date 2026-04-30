@@ -198,12 +198,7 @@ impl SingboxManager {
         let url = format!("{}/bindings/{}", self.api_base, proxy_id);
         let secret = self.config.api_secret.clone().unwrap_or_default();
 
-        let result = self
-            .client
-            .delete(&url)
-            .bearer_auth(&secret)
-            .send()
-            .await;
+        let result = self.client.delete(&url).bearer_auth(&secret).send().await;
 
         match result {
             Ok(resp) if resp.status().is_success() => {
@@ -313,7 +308,11 @@ fn which_singbox(config_path: &std::path::Path) -> std::path::PathBuf {
     // 1. Check same directory as our own executable
     if let Ok(exe_path) = std::env::current_exe() {
         if let Some(exe_dir) = exe_path.parent() {
-            let name = if cfg!(windows) { "sing-box.exe" } else { "sing-box" };
+            let name = if cfg!(windows) {
+                "sing-box.exe"
+            } else {
+                "sing-box"
+            };
             let local = exe_dir.join(name);
             if local.exists() {
                 tracing::info!("Found sing-box next to executable: {}", local.display());

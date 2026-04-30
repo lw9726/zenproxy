@@ -23,6 +23,8 @@
       "external_ui_download_detour": "",
       "secret": "",
       "default_mode": "",
+      "zenproxy_port_start": 20001,
+      "zenproxy_port_end": 30000,
       "access_control_allow_origin": [],
       "access_control_allow_private_network": false,
       
@@ -102,6 +104,35 @@ ALWAYS set a secret if RESTful API is listening on 0.0.0.0
 Default mode in clash, `Rule` will be used if empty.
 
 This setting has no direct effect, but can be used in routing and DNS rules via the `clash_mode` rule item.
+
+#### zenproxy_port_start
+
+Start port for ZenProxy dynamic local proxy bindings.
+
+When `/bindings` or `/bindings/batch` creates bindings from stored proxies without an explicit `listen_port`, ports are allocated from `zenproxy_port_start` to `zenproxy_port_end`.
+
+Default is `20001`.
+
+#### zenproxy_port_end
+
+End port for ZenProxy dynamic local proxy bindings.
+
+Default is `30000`.
+
+Example:
+
+```json
+{
+  "experimental": {
+    "clash_api": {
+      "external_controller": "127.0.0.1:9090",
+      "secret": "your-secret",
+      "zenproxy_port_start": 60001,
+      "zenproxy_port_end": 65535
+    }
+  }
+}
+```
 
 #### access_control_allow_origin
 

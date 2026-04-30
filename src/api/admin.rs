@@ -1,45 +1,73 @@
+use crate::api::auth;
+use crate::db::{AuthSettings, User};
 use crate::error::AppError;
+use crate::pool::manager::{PoolProxy, ProxyListQuery};
 use crate::AppState;
-use axum::extract::{Path, State};
+use axum::extract::{Path, Query, State};
 use axum::Json;
+use serde::Deserialize;
 use serde_json::json;
 use std::sync::Arc;
 
+#[derive(Debug, Deserialize)]
+pub struct CreateUserRequest {
+    username: String,
+    password: String,
+    name: Option<String>,
+    #[serde(default)]
+    can_use_relay: bool,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct AuthSettingsRequest {
+    allow_account_login: bool,
+    allow_linux_do_login: bool,
+    allow_registration: bool,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct RelayPermissionRequest {
+    allowed: bool,
+}
+
 pub async fn list_proxies(
     State(state): State<Arc<AppState>>,
+    Query(query): Query<ProxyListQuery>,
 ) -> Result<Json<serde_json::Value>, AppError> {
-    let proxies = state.pool.get_all();
-    let proxy_list: Vec<serde_json::Value> = proxies
-        .iter()
-        .map(|p| {
-            json!({
-                "id": p.id,
-                "subscription_id": p.subscription_id,
-                "name": p.name,
-                "type": p.proxy_type,
-                "server": p.server,
-                "port": p.port,
-                "local_port": p.local_port,
-                "status": p.status,
-                "error_count": p.error_count,
-                "quality": p.quality.as_ref().map(|q| json!({
-                    "ip_address": q.ip_address,
-                    "country": q.country,
-                    "ip_type": q.ip_type,
-                    "is_residential": q.is_residential,
-                    "chatgpt": q.chatgpt_accessible,
-                    "google": q.google_accessible,
-                    "risk_score": q.risk_score,
-                    "risk_level": q.risk_level,
-                })),
-            })
-        })
-        .collect();
+    let result = state.pool.list_proxies(&query);
+    let proxy_list: Vec<serde_json::Value> =
+        result.proxies.iter().map(admin_proxy_to_json).collect();
 
     Ok(Json(json!({
         "proxies": proxy_list,
-        "total": proxy_list.len(),
+        "total": result.total,
+        "page": result.page,
+        "per_page": result.per_page,
     })))
+}
+
+fn admin_proxy_to_json(p: &PoolProxy) -> serde_json::Value {
+    json!({
+        "id": p.id,
+        "subscription_id": p.subscription_id,
+        "name": p.name,
+        "type": p.proxy_type,
+        "server": p.server,
+        "port": p.port,
+        "local_port": p.local_port,
+        "status": p.status,
+        "error_count": p.error_count,
+        "quality": p.quality.as_ref().map(|q| json!({
+            "ip_address": q.ip_address,
+            "country": q.country,
+            "ip_type": q.ip_type,
+            "is_residential": q.is_residential,
+            "chatgpt": q.chatgpt_accessible,
+            "google": q.google_accessible,
+            "risk_score": q.risk_score,
+            "risk_level": q.risk_level,
+        })),
+    })
 }
 
 pub async fn delete_proxy(
@@ -119,6 +147,56 @@ pub async fn list_users(
     })))
 }
 
+pub async fn create_user(
+    State(state): State<Arc<AppState>>,
+    Json(req): Json<CreateUserRequest>,
+) -> Result<Json<serde_json::Value>, AppError> {
+    let username = normalize_username(&req.username)?;
+    if state.db.get_user_by_username(&username)?.is_some() {
+        return Err(AppError::BadRequest("Username already exists".into()));
+    }
+    let now = chrono::Utc::now().to_rfc3339();
+    let user = User {
+        id: uuid::Uuid::new_v4().to_string(),
+        username,
+        name: req.name.filter(|s| !s.trim().is_empty()),
+        avatar_template: None,
+        active: true,
+        trust_level: 0,
+        silenced: false,
+        is_banned: false,
+        can_use_relay: req.can_use_relay,
+        api_key: uuid::Uuid::new_v4().to_string(),
+        auth_provider: "account".to_string(),
+        password_hash: Some(auth::hash_password(&req.password)?),
+        created_at: now.clone(),
+        updated_at: now,
+    };
+    state.db.upsert_user(&user)?;
+    Ok(Json(json!({ "message": "User created", "user": user })))
+}
+
+pub async fn get_auth_settings(
+    State(state): State<Arc<AppState>>,
+) -> Result<Json<serde_json::Value>, AppError> {
+    Ok(Json(json!(state.db.get_auth_settings()?)))
+}
+
+pub async fn update_auth_settings(
+    State(state): State<Arc<AppState>>,
+    Json(req): Json<AuthSettingsRequest>,
+) -> Result<Json<serde_json::Value>, AppError> {
+    let settings = AuthSettings {
+        allow_account_login: req.allow_account_login,
+        allow_linux_do_login: req.allow_linux_do_login,
+        allow_registration: req.allow_registration,
+    };
+    state.db.update_auth_settings(&settings)?;
+    Ok(Json(
+        json!({ "message": "Auth settings updated", "settings": settings }),
+    ))
+}
+
 pub async fn delete_user(
     State(state): State<Arc<AppState>>,
     Path(id): Path<String>,
@@ -132,6 +210,7 @@ pub async fn ban_user(
     Path(id): Path<String>,
 ) -> Result<Json<serde_json::Value>, AppError> {
     state.db.set_user_banned(&id, true)?;
+    state.auth_cache.clear();
     Ok(Json(json!({ "message": "User banned" })))
 }
 
@@ -141,4 +220,35 @@ pub async fn unban_user(
 ) -> Result<Json<serde_json::Value>, AppError> {
     state.db.set_user_banned(&id, false)?;
     Ok(Json(json!({ "message": "User unbanned" })))
+}
+
+pub async fn set_user_relay_permission(
+    State(state): State<Arc<AppState>>,
+    Path(id): Path<String>,
+    Json(req): Json<RelayPermissionRequest>,
+) -> Result<Json<serde_json::Value>, AppError> {
+    state.db.set_user_relay_allowed(&id, req.allowed)?;
+    state.auth_cache.clear();
+    Ok(Json(json!({
+        "message": "User relay permission updated",
+        "allowed": req.allowed,
+    })))
+}
+
+fn normalize_username(username: &str) -> Result<String, AppError> {
+    let username = username.trim();
+    if username.len() < 3 || username.len() > 40 {
+        return Err(AppError::BadRequest(
+            "Username must be 3-40 characters".into(),
+        ));
+    }
+    if !username
+        .chars()
+        .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-' || c == '.')
+    {
+        return Err(AppError::BadRequest(
+            "Username may only contain letters, numbers, _, - and .".into(),
+        ));
+    }
+    Ok(username.to_string())
 }
