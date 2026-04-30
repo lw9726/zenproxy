@@ -5,6 +5,8 @@ ZenProxy 是一个代理池管理与转发服务，由两部分组成：
 - **ZenProxy Server**（Rust + Axum）：服务端，管理代理池、用户认证、请求转发、代理验证与质检
 - **sing-box-zenproxy**（Go，修改版 sing-box）：本地客户端，通过 Clash API 提供代理存储、订阅管理、批量绑定等功能，支持并发多 IP 出口
 
+感谢[L站](https://linux.do/)各位佬友的大力支持！
+
 ## 架构概览
 
 ### 服务端模式
