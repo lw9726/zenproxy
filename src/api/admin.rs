@@ -23,6 +23,7 @@ pub struct AuthSettingsRequest {
     allow_account_login: bool,
     allow_linux_do_login: bool,
     allow_registration: bool,
+    allow_new_users: bool,
 }
 
 #[derive(Debug, Deserialize)]
@@ -151,6 +152,12 @@ pub async fn create_user(
     State(state): State<Arc<AppState>>,
     Json(req): Json<CreateUserRequest>,
 ) -> Result<Json<serde_json::Value>, AppError> {
+    let settings = state.db.get_auth_settings()?;
+    if !settings.allow_new_users {
+        return Err(AppError::BadRequest(
+            "New user creation is currently disabled".into(),
+        ));
+    }
     let username = normalize_username(&req.username)?;
     if state.db.get_user_by_username(&username)?.is_some() {
         return Err(AppError::BadRequest("Username already exists".into()));
@@ -190,6 +197,7 @@ pub async fn update_auth_settings(
         allow_account_login: req.allow_account_login,
         allow_linux_do_login: req.allow_linux_do_login,
         allow_registration: req.allow_registration,
+        allow_new_users: req.allow_new_users,
     };
     state.db.update_auth_settings(&settings)?;
     Ok(Json(

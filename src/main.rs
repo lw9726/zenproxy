@@ -53,6 +53,7 @@ async fn main() {
         allow_account_login: config.auth.allow_account_login,
         allow_linux_do_login: config.auth.allow_linux_do_login,
         allow_registration: config.auth.allow_registration,
+        allow_new_users: config.auth.allow_new_users,
     })
     .expect("Failed to initialize auth settings");
 

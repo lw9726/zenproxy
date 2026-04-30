@@ -77,6 +77,7 @@ redirect_uri = "https://your-domain.com/api/auth/callback"
 allow_account_login = true                # 是否允许账号密码登录
 allow_linux_do_login = true               # 是否允许 Linux.do 登录
 allow_registration = false                # 是否允许用户自行注册
+allow_new_users = true                    # 是否允许创建新用户（注册 / Linux.do 首次登录 / 管理员建号）
 
 [singbox]
 binary_path = "/usr/local/bin/sing-box"   # sing-box 二进制路径（同目录优先）
@@ -116,8 +117,9 @@ auto_refresh_timezone = "Asia/Shanghai"   # 定时刷新所使用的时区
 | 管理密码 | 管理后台 | Header: `Authorization: Bearer {admin_password}` |
 
 账号可由管理员在后台创建；开启注册后，用户也可自行注册。OAuth 使用 [Linux.do](https://linux.do) 作为身份提供商。用户登录后获得 API Key，可在个人页面查看和重新生成。
+`allow_new_users = false` 时，会全局暂停新增用户：账号注册、Linux.do 首次登录自动建号、管理员后台手动建号都会被拒绝；已有用户登录不受影响。
 
-`[auth]` 配置只在数据库首次初始化认证设置时写入默认值。后续可在管理后台切换是否允许账号登录、Linux.do 登录和用户自行注册，后台设置会保存在 SQLite 中。
+`[auth]` 配置只在数据库首次初始化认证设置时写入默认值。后续可在管理后台切换是否允许账号登录、Linux.do 登录、用户自行注册和新增用户，后台设置会保存在 SQLite 中。
 
 ZenProxy 没有默认管理员账号。管理后台使用 `config.toml` 中的 `server.admin_password` 登录。
 
@@ -362,9 +364,12 @@ GET /api/proxies?api_key=xxx&page=1&per_page=50&status=valid&sort=name&dir=asc
 {
   "allow_account_login": true,
   "allow_linux_do_login": true,
-  "allow_registration": false
+  "allow_registration": false,
+  "allow_new_users": true
 }
 ```
+
+`allow_new_users = false` 时，会暂停新增用户，包括账号注册、Linux.do 首次登录自动建号和管理员后台手动创建账号。
 
 管理员创建账号：
 

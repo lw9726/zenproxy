@@ -75,6 +75,7 @@ pub struct AuthSettings {
     pub allow_account_login: bool,
     pub allow_linux_do_login: bool,
     pub allow_registration: bool,
+    pub allow_new_users: bool,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -161,6 +162,7 @@ impl Database {
                 allow_account_login INTEGER NOT NULL DEFAULT 1,
                 allow_linux_do_login INTEGER NOT NULL DEFAULT 1,
                 allow_registration INTEGER NOT NULL DEFAULT 0,
+                allow_new_users INTEGER NOT NULL DEFAULT 1,
                 updated_at TEXT NOT NULL
             );
 
@@ -187,6 +189,12 @@ impl Database {
             "users",
             "can_use_relay",
             "INTEGER NOT NULL DEFAULT 0",
+        )?;
+        Self::add_column_if_missing(
+            &conn,
+            "auth_settings",
+            "allow_new_users",
+            "INTEGER NOT NULL DEFAULT 1",
         )?;
         Ok(())
     }
@@ -726,30 +734,33 @@ impl Database {
     pub fn get_auth_settings(&self) -> Result<AuthSettings, rusqlite::Error> {
         let conn = self.conn.lock().unwrap();
         let mut stmt = conn.prepare(
-            "SELECT allow_account_login, allow_linux_do_login, allow_registration FROM auth_settings WHERE id = 1"
+            "SELECT allow_account_login, allow_linux_do_login, allow_registration, allow_new_users FROM auth_settings WHERE id = 1"
         )?;
         let mut rows = stmt.query_map([], |row| {
             Ok(AuthSettings {
                 allow_account_login: row.get::<_, i32>(0)? != 0,
                 allow_linux_do_login: row.get::<_, i32>(1)? != 0,
                 allow_registration: row.get::<_, i32>(2)? != 0,
+                allow_new_users: row.get::<_, i32>(3)? != 0,
             })
         })?;
         Ok(rows.next().transpose()?.unwrap_or(AuthSettings {
             allow_account_login: true,
             allow_linux_do_login: true,
             allow_registration: false,
+            allow_new_users: true,
         }))
     }
 
     pub fn update_auth_settings(&self, settings: &AuthSettings) -> Result<(), rusqlite::Error> {
         let conn = self.conn.lock().unwrap();
         conn.execute(
-            "UPDATE auth_settings SET allow_account_login = ?1, allow_linux_do_login = ?2, allow_registration = ?3, updated_at = ?4 WHERE id = 1",
+            "UPDATE auth_settings SET allow_account_login = ?1, allow_linux_do_login = ?2, allow_registration = ?3, allow_new_users = ?4, updated_at = ?5 WHERE id = 1",
             params![
                 settings.allow_account_login as i32,
                 settings.allow_linux_do_login as i32,
                 settings.allow_registration as i32,
+                settings.allow_new_users as i32,
                 chrono::Utc::now().to_rfc3339()
             ],
         )?;
@@ -762,12 +773,13 @@ impl Database {
     ) -> Result<(), rusqlite::Error> {
         let conn = self.conn.lock().unwrap();
         conn.execute(
-            "INSERT OR IGNORE INTO auth_settings (id, allow_account_login, allow_linux_do_login, allow_registration, updated_at)
-             VALUES (1, ?1, ?2, ?3, ?4)",
+            "INSERT OR IGNORE INTO auth_settings (id, allow_account_login, allow_linux_do_login, allow_registration, allow_new_users, updated_at)
+             VALUES (1, ?1, ?2, ?3, ?4, ?5)",
             params![
                 settings.allow_account_login as i32,
                 settings.allow_linux_do_login as i32,
                 settings.allow_registration as i32,
+                settings.allow_new_users as i32,
                 chrono::Utc::now().to_rfc3339()
             ],
         )?;

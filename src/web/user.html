@@ -326,7 +326,7 @@ function toggleTheme() {
 }
 applyTheme(localStorage.getItem(THEME_KEY));
 
-let authSettings = { allow_account_login: true, allow_linux_do_login: true, allow_registration: false };
+let authSettings = { allow_account_login: true, allow_linux_do_login: true, allow_registration: false, allow_new_users: true };
 let registerMode = false;
 let currentUser = null;
 let allProxies = [];
@@ -362,8 +362,8 @@ function renderLoginOptions() {
   const linuxBtn = document.getElementById('linux-login-btn');
   const linuxDivider = document.getElementById('linux-divider');
   accountBox.style.display = authSettings.allow_account_login && !registerMode ? '' : 'none';
-  registerBox.style.display = authSettings.allow_account_login && authSettings.allow_registration && registerMode ? '' : 'none';
-  registerSwitch.style.display = authSettings.allow_account_login && authSettings.allow_registration ? '' : 'none';
+  registerBox.style.display = authSettings.allow_account_login && authSettings.allow_registration && authSettings.allow_new_users && registerMode ? '' : 'none';
+  registerSwitch.style.display = authSettings.allow_account_login && authSettings.allow_registration && authSettings.allow_new_users ? '' : 'none';
   registerSwitch.textContent = registerMode ? '已有账号？登录' : '没有账号？注册';
   linuxBtn.style.display = authSettings.allow_linux_do_login ? '' : 'none';
   linuxDivider.style.display = authSettings.allow_account_login && authSettings.allow_linux_do_login ? '' : 'none';

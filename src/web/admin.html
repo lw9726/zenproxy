@@ -205,6 +205,7 @@ tr:hover td { background:var(--primary-soft); }
         <label><input type="checkbox" id="auth-account-login"> 允许账号登录</label>
         <label><input type="checkbox" id="auth-linux-login"> 允许 Linux.do 登录</label>
         <label><input type="checkbox" id="auth-registration"> 允许用户自行注册</label>
+        <label><input type="checkbox" id="auth-new-users"> 允许新增用户</label>
       </div>
       <div class="btn-group">
         <button class="btn btn-primary" onclick="saveAuthSettings()">保存认证策略</button>
@@ -480,13 +481,15 @@ async function loadAuthSettings() {
   document.getElementById('auth-account-login').checked = !!d.allow_account_login;
   document.getElementById('auth-linux-login').checked = !!d.allow_linux_do_login;
   document.getElementById('auth-registration').checked = !!d.allow_registration;
+  document.getElementById('auth-new-users').checked = d.allow_new_users !== false;
 }
 
 async function saveAuthSettings() {
   const body = {
     allow_account_login: document.getElementById('auth-account-login').checked,
     allow_linux_do_login: document.getElementById('auth-linux-login').checked,
-    allow_registration: document.getElementById('auth-registration').checked
+    allow_registration: document.getElementById('auth-registration').checked,
+    allow_new_users: document.getElementById('auth-new-users').checked
   };
   const d = await api('/api/admin/auth-settings', {
     method: 'POST',

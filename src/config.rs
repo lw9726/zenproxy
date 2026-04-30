@@ -43,6 +43,8 @@ pub struct AuthConfig {
     pub allow_linux_do_login: bool,
     #[serde(default)]
     pub allow_registration: bool,
+    #[serde(default = "default_true")]
+    pub allow_new_users: bool,
 }
 
 fn default_true() -> bool {
@@ -55,6 +57,7 @@ impl Default for AuthConfig {
             allow_account_login: true,
             allow_linux_do_login: true,
             allow_registration: false,
+            allow_new_users: true,
         }
     }
 }

@@ -109,6 +109,11 @@ pub async fn register(
     Json(req): Json<RegisterRequest>,
 ) -> Result<Response, AppError> {
     let settings = state.db.get_auth_settings()?;
+    if !settings.allow_new_users {
+        return Err(AppError::Unauthorized(
+            "New user creation is disabled".into(),
+        ));
+    }
     if !settings.allow_registration {
         return Err(AppError::Unauthorized("Registration is disabled".into()));
     }
@@ -225,7 +230,20 @@ pub async fn callback(
             }
             (existing.api_key, existing.can_use_relay)
         }
-        None => (uuid::Uuid::new_v4().to_string(), false),
+        None => {
+            let settings = state.db.get_auth_settings()?;
+            if !settings.allow_new_users {
+                let html = r#"<!DOCTYPE html><html><head><meta charset="UTF-8"><title>New Users Disabled</title>
+                <style>body{font-family:system-ui;background:#0f1117;color:#e2e8f0;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0}
+                .box{background:#1a1d27;border:1px solid #2a2d3a;border-radius:16px;padding:40px;text-align:center;max-width:420px}
+                h2{color:#ef4444;margin-bottom:12px}a{color:#6c63ff}</style></head>
+                <body><div class="box"><h2>New User Creation Disabled</h2>
+                <p>The administrator has temporarily paused creating new users.</p>
+                <p style="margin-top:16px"><a href="/">Back</a></p></div></body></html>"#;
+                return Ok(axum::response::Html(html).into_response());
+            }
+            (uuid::Uuid::new_v4().to_string(), false)
+        }
     };
 
     let user = User {
